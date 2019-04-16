@@ -1,0 +1,21 @@
+[package]
+name = "responsive-image-to-hugo-template"
+version = "0.1.0"
+description = "A library and command line tool for managing images for use with a Hugo site"
+license = "MIT"
+authors = ["Arran France <arran@arranfrance.com>"]
+edition = "2018"
+categories = ["command-line-utilities"]
+readme = "README.md"
+
+[dependencies]
+env_logger = "0.6.1"
+log = "0.4.6"
+structopt = "0.2"
+custom_error = "1.6.0"
+tempfile = "3"
+zip = "0.5.2"
+
+[dev-dependencies]
+assert_cmd = "0.11.1"
+predicates = "1"
