@@ -21,20 +21,17 @@ fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<PathBuf,
         let mut file = zip.by_index(i)?;
 
         let outpath = temp_directory.join(file.sanitized_name());
+
         if (&*file.name()).ends_with('/') {
+            // Handle directories
             info!(
-                "File {} extracted to \"{}\"",
+                "Directory {} extracted to \"{}\"",
                 i,
                 outpath.as_path().display()
             );
             create_dir_all(&outpath).unwrap();
         } else {
-            info!(
-                "File {} extracted to \"{}\" ({} bytes)",
-                i,
-                outpath.as_path().display(),
-                file.size()
-            );
+            // Handle files
             if let Some(p) = outpath.parent() {
                 if !p.exists() {
                     create_dir_all(&p).unwrap();
@@ -42,6 +39,12 @@ fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<PathBuf,
             }
             let mut outfile = File::create(&outpath)?;
             copy(&mut file, &mut outfile).unwrap();
+            info!(
+                "File {} extracted to \"{}\" ({} bytes)",
+                i,
+                outpath.as_path().display(),
+                file.size()
+            );
         }
     }
 
@@ -64,16 +67,35 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
-    fn test_basic() {
-        let dir = tempdir().unwrap();
-        println!("{}", dir.path().to_string_lossy());
-        unzip_images(
-            &PathBuf::from_str("/home/afrance/Downloads/q8e2dqsin57gkjoe4msg.zip").unwrap(),
-            &dir.path().to_path_buf(),
+    fn test_unzip_images_happy() {
+        let dest_dir = tempdir().unwrap();
+
+        // Nothing there to begin with
+        let paths = read_dir(dest_dir.path()).unwrap();
+        assert_eq!(0, paths.count());
+
+        let directory = unzip_images(
+            &PathBuf::from_str("./test/q8e2dqsin57gkjoe4msg.zip").unwrap(),
+            &dest_dir.path().to_path_buf(),
         )
         .unwrap();
-        let paths = read_dir(dir.path()).unwrap();
-        println!("{}", paths.count());
-        dir.close().unwrap();
+        // The top level folder should exist
+        let paths = read_dir(dest_dir.path()).unwrap();
+        assert_eq!(paths.count(), 1);
+
+        // The inner files should have been unzipped
+        let file_count = read_dir(directory).unwrap().count();
+        assert_eq!(file_count, 18);
+
+        dest_dir.close().unwrap();
+    }
+
+    #[test]
+    fn test_unzip_images_error() {
+        let dest_dir = tempdir().unwrap();
+        let zip_dir = PathBuf::from_str("/tmp/bad/path").unwrap();
+        let directory = unzip_images(&zip_dir, &dest_dir.path().to_path_buf());
+        assert!(directory.is_err());
+        dest_dir.close().unwrap();
     }
 }
