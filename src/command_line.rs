@@ -18,7 +18,7 @@ pub struct Options {
 
     /// The path to the file containing the HTML template from https://responsivebreakpoints.com/
     #[structopt(parse(from_os_str))]
-    pub template: Option<PathBuf>,
+    pub template: PathBuf,
 
     /// The S3 sub-directory to add the files to
     #[structopt(short = "d", long = "directory")]
@@ -26,6 +26,5 @@ pub struct Options {
 
     /// The location of the Hugo the data file to modify
     #[structopt(short = "o", long = "output", parse(from_os_str))]
-    pub output: PathBuf,
-
+    pub output: Option<PathBuf>,
 }
