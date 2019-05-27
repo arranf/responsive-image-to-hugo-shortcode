@@ -8,7 +8,7 @@ use env_logger::Env;
 use responsive_image_to_hugo_template::command_line::Options;
 use responsive_image_to_hugo_template::error::AppError;
 use structopt::StructOpt;
-use tempfile::tempdir;
+use tempfile::Builder;
 
 fn main() -> Result<(), AppError> {
     env_logger::Builder::from_env(
@@ -17,7 +17,7 @@ fn main() -> Result<(), AppError> {
     .init();
 
     let options = Options::from_args();
-    let temp_dir = tempdir()?;
+    let temp_dir = Builder::new().prefix("rith").tempdir()?;;
 
     info!("Unzipping images");
     let image_directory = responsive_image_to_hugo_template::unzip_images(
@@ -27,9 +27,11 @@ fn main() -> Result<(), AppError> {
 
     // TODO: Upload Images
 
-    info!("Generating data file");
+    debug!("Generating data file");
     let data = responsive_image_to_hugo_template::generate_data(&options, &image_directory);
-    info!("Writing data");
+    debug!("Writing data");
     responsive_image_to_hugo_template::write_data_to_hugo_data_template(data, options.output)?;
+
+    temp_dir.close()?;
     Ok(())
 }

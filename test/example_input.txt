@@ -39,19 +39,19 @@ media="(min-width: 992px) and (max-width: 1199px)"
 sizes="(max-width: 2400px) 60vw, 1440px"
 srcset="
 robot_ar_16_9,c_fill,g_auto__c_scale,w_596.png 596w,
-robot_ar_16_9,c_fill,g_auto__c_scale,w_811.png 811w,
+robot_ar_16_9,c_fill,g_auto__c_scale,w_778.png 778w,
 robot_ar_16_9,c_fill,g_auto__c_scale,w_951.png 951w,
-robot_ar_16_9,c_fill,g_auto__c_scale,w_1093.png 1093w,
-robot_ar_16_9,c_fill,g_auto__c_scale,w_1205.png 1205w,
+robot_ar_16_9,c_fill,g_auto__c_scale,w_1082.png 1082w,
+robot_ar_16_9,c_fill,g_auto__c_scale,w_1210.png 1210w,
 robot_ar_16_9,c_fill,g_auto__c_scale,w_1440.png 1440w">
 <img
 sizes="(max-width: 5000px) 40vw, 2000px"
 srcset="
 robot_c_scale,w_480.png 480w,
-robot_c_scale,w_589.png 589w,
-robot_c_scale,w_700.png 700w,
-robot_c_scale,w_823.png 823w,
-robot_c_scale,w_868.png 868w,
+robot_c_scale,w_587.png 587w,
+robot_c_scale,w_695.png 695w,
+robot_c_scale,w_789.png 789w,
+robot_c_scale,w_883.png 883w,
 robot_c_scale,w_962.png 962w,
 robot_c_scale,w_1044.png 1044w,
 robot_c_scale,w_1125.png 1125w,

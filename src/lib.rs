@@ -10,6 +10,7 @@ mod data;
 pub mod error;
 mod fallback_image;
 mod source;
+mod sqip;
 
 use crate::command_line::Options;
 use crate::constants::*;
@@ -17,6 +18,7 @@ use crate::data::Data;
 use crate::error::AppError;
 use crate::fallback_image::FallbackImage;
 use crate::source::Source;
+use crate::sqip::*;
 
 use chrono::prelude::*;
 use regex::Regex;
@@ -74,7 +76,7 @@ pub fn write_data_to_hugo_data_template(
     create_dir_all(&output_location.with_file_name(""))?;
     let serialized_data = serde_json::to_string(&existing_data)?;
     std::fs::write(&output_location, serialized_data)?;
-    info!("Written index to {}", &output_location.to_string_lossy());
+    info!("Index written to {}", &output_location.to_string_lossy());
     Ok(())
 }
 
@@ -91,7 +93,7 @@ pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<Path
 
         if (&*file.name()).ends_with('/') {
             // Handle directories
-            info!(
+            debug!(
                 "Directory {} extracted to \"{}\"",
                 i,
                 outpath.as_path().display()
@@ -106,7 +108,7 @@ pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<Path
             }
             let mut outfile = File::create(&outpath)?;
             copy(&mut file, &mut outfile).unwrap();
-            info!(
+            debug!(
                 "File {} extracted to \"{}\" ({} bytes)",
                 i,
                 outpath.as_path().display(),
@@ -169,21 +171,28 @@ fn get_sources(html: &Html, prefix: &str, image_directory: &PathBuf) -> Vec<Sour
         let media = source.attr("media").unwrap();
 
         let sizes = source.attr("sizes").unwrap();
-        let min_width = min_width_regex.captures(media).unwrap()[1].to_owned();
+        // let min_width = min_width_regex.captures(media).unwrap()[1].to_owned();
 
         let srcset = prefix_source(source.attr("srcset").unwrap(), prefix);
 
         // Get filename of best quality file (last) and generate a SQIP
+        // Split robot_ar_1_1,c_fill,g_auto__c_scale,w_200.png 200w, robot_ar_1_1,c_fill,g_auto__c_scale,w_335.png 335w,
         let split: Vec<&str> = srcset.split("/").collect();
-        let filename = split.last().unwrap().split(" ").last().unwrap();
-        let path = image_directory.clone().push(filename);
-        //TODO DO SQIP
+        // Split robot_ar_1_1,c_fill,g_auto__c_scale,w_335.png 335w,
+        let filename = split.last().unwrap().split(" ").collect::<Vec<&str>>();
+        // Take robot_ar_1_1,c_fill,g_auto__c_scale,w_335.png
+        let filename = filename.first().unwrap();
+        let mut path = image_directory.clone();
+        path.push(filename);
+
+        debug!("Making SVG placeholder");
+        let svg_placeholder = make_sqip(&path.to_string_lossy()).expect("Failed to get SQIP");
 
         sources.push(Source::new(
             media.to_owned(),
             sizes.to_owned(),
             srcset,
-            "".to_owned(),
+            svg_placeholder,
         ));
     }
     sources
@@ -196,8 +205,14 @@ fn get_fallback_image(html: &Html, prefix: &str, image_directory: &PathBuf) -> F
     let sizes = img.attr("sizes").unwrap();
     let srcset = prefix_source(img.attr("srcset").unwrap(), prefix);
     let src = prefix_source(img.attr("src").unwrap(), prefix);
-    // TODO SQIP
-    FallbackImage::new(src, sizes.to_owned(), srcset, "".to_owned())
+
+    // Generate SVG
+    let filename = img.attr("src").unwrap();
+    let mut path = image_directory.clone();
+    path.push(&filename);
+    let svg_placeholder = make_sqip(&path.to_string_lossy()).expect("Failed to get SQIP");
+
+    FallbackImage::new(src, sizes.to_owned(), srcset, svg_placeholder)
 }
 
 #[cfg(test)]
@@ -208,6 +223,8 @@ mod tests {
     use std::str::FromStr;
     use tempfile::tempdir;
 
+    const ZIP_FILE: &'static str = "./test/example_zip.zip";
+
     #[test]
     fn test_unzip_images_happy() {
         let dest_dir = tempdir().unwrap();
@@ -217,7 +234,7 @@ mod tests {
         assert_eq!(0, paths.count());
 
         let directory = unzip_images(
-            &PathBuf::from_str("./test/q8e2dqsin57gkjoe4msg.zip").unwrap(),
+            &PathBuf::from_str(ZIP_FILE).unwrap(),
             &dest_dir.path().to_path_buf(),
         )
         .unwrap();

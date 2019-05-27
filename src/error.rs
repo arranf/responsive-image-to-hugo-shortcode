@@ -7,4 +7,5 @@ custom_error! {pub AppError // Enum name
     Io{source: std::io::Error}            = "Error performing IO",
     Unzip{source: ZipError} = "Error unzipping images",
     Serde{source: serde_json::error::Error } = "Error saving or fetching data",
+    SQIP{} = "Error obtaining SQIP placeholder"
 }
