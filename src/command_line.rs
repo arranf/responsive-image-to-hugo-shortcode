@@ -27,4 +27,8 @@ pub struct Options {
     /// The location of the Hugo the data file to modify
     #[structopt(short = "o", long = "output", parse(from_os_str))]
     pub output: Option<PathBuf>,
+
+    /// Skip uploading images
+    #[structopt(short = "s", long = "skip-upload")]
+    pub skip_upload: bool,
 }

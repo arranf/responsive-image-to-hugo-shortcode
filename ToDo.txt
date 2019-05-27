@@ -1,1 +1,1 @@
-* Offer image compression
+* Offer image compression before upload

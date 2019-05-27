@@ -21,23 +21,69 @@ use crate::source::Source;
 use crate::sqip::*;
 
 use chrono::prelude::*;
+use indicatif::ProgressBar;
 use regex::Regex;
+use s3::bucket::Bucket;
+use s3::credentials::Credentials;
 use scraper::{Html, Selector};
 use std::fs::{create_dir_all, read_dir, read_to_string, DirEntry, File};
 use std::io::copy;
+use std::io::Read;
 use std::path::PathBuf;
 use zip::ZipArchive;
 
-pub fn upload_images() -> Result<(), AppError> {
-    // TODO
+/// Upload to S3
+pub fn upload_images(
+    image_directory: &PathBuf,
+    directory: &Option<String>,
+    now: DateTime<Local>,
+) -> Result<(), AppError> {
+    //TODO: Concurrency
+    let files = read_dir(image_directory)?
+        .filter_map(|result| result.ok())
+        .map(|entry| entry.path())
+        .filter(|path| !path.is_dir())
+        .collect::<Vec<PathBuf>>();
+
+    let prefix = get_prefix(directory, now);
+
+    let region = REGION.parse()?;
+    // Loads from environment variables
+    let credentials = Credentials::new(None, None, None, None);
+    let bucket = Bucket::new(BUCKET_NAME, region, credentials)?;
+
+    let bar = ProgressBar::new(files.len() as u64);
+    for path in files {
+        let file_name = path.file_name().unwrap().to_str().unwrap();
+        let s3_path = [&prefix, file_name].join("");
+        let mut file_contents = std::fs::File::open(&path)?;
+        let metadata = file_contents.metadata()?;
+        let mut bytes: Vec<u8> = Vec::with_capacity(metadata.len() as usize);
+        file_contents.read_to_end(&mut bytes)?;
+
+        let parts: Vec<&str> = file_name.split('.').collect();
+
+        let mime_type = match parts.last() {
+            Some(v) => match *v {
+                "png" => "image/png",
+                "jpg" => "image/jpeg",
+                _ => "text/plain",
+            },
+            None => "text/plain",
+        };
+        bucket.put_object(&s3_path, &bytes, mime_type)?;
+        bar.inc(1);
+    }
+    bar.finish();
     Result::Ok(())
 }
 
-pub fn generate_data(options: &Options, image_directory: &PathBuf) -> Data {
+/// Creates the data to be written to file
+pub fn generate_data(options: &Options, image_directory: &PathBuf, now: DateTime<Local>) -> Data {
     let html = get_html(&options.template).unwrap();
     let prefix = [
         BUCKET_NAME.to_owned(),
-        get_prefix(&options.s3_directory, Local::now()),
+        get_prefix(&options.s3_directory, now),
     ]
     .join("");
     let fallback_image = get_fallback_image(&html, &prefix, image_directory);
@@ -49,6 +95,7 @@ pub fn generate_data(options: &Options, image_directory: &PathBuf) -> Data {
     }
 }
 
+/// Writes data to the spciefied location as JSON
 pub fn write_data_to_hugo_data_template(
     data: Data,
     output_location: Option<PathBuf>,
@@ -80,11 +127,13 @@ pub fn write_data_to_hugo_data_template(
     Ok(())
 }
 
+/// Unzip images to a temporary directory
 pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<PathBuf, AppError> {
     let file = File::open(&zip_path)?;
     let reader = std::io::BufReader::new(file);
 
     let mut zip = ZipArchive::new(reader)?;
+    let bar = ProgressBar::new(zip.len() as u64);
     // TODO: Concurrency
     for i in 0..zip.len() {
         let mut file = zip.by_index(i)?;
@@ -115,7 +164,9 @@ pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<Path
                 file.size()
             );
         }
+        bar.inc(1);
     }
+    bar.finish();
 
     let paths = read_dir(temp_directory)?;
     let directories: Vec<DirEntry> = paths
@@ -132,6 +183,8 @@ fn get_html(src_path: &PathBuf) -> Result<Html, AppError> {
     Ok(Html::parse_fragment(&contents))
 }
 
+/// The prefix that should be appended to all filenames to match the AWS path
+/// Example: images/12/25/christmas/
 fn get_prefix(directory: &Option<String>, now: DateTime<Local>) -> String {
     let year = now.year();
     let month = MONTH_NAMES[now.month0() as usize];
@@ -165,14 +218,11 @@ fn get_sources(html: &Html, prefix: &str, image_directory: &PathBuf) -> Vec<Sour
     let mut sources: Vec<Source> = Vec::new();
 
     let selector = Selector::parse("source").unwrap();
-    let min_width_regex = Regex::new(r"max-width: (\d+)px").unwrap();
     for source in html.select(&selector) {
         let source = source.value();
         let media = source.attr("media").unwrap();
 
         let sizes = source.attr("sizes").unwrap();
-        // let min_width = min_width_regex.captures(media).unwrap()[1].to_owned();
-
         let srcset = prefix_source(source.attr("srcset").unwrap(), prefix);
 
         // Get filename of best quality file (last) and generate a SQIP
