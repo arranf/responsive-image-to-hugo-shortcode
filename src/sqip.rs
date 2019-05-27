@@ -5,7 +5,7 @@ use crate::error::AppError;
 use base64::encode;
 
 extern "C" {
-    fn MakeSVG(path: GoString) -> GoString;
+    fn MakeSVG(path: GoString) -> *const c_char;
 }
 
 /// See [here](http://blog.ralch.com/tutorial/golang-sharing-libraries/) for GoString struct layout
@@ -23,7 +23,7 @@ pub fn make_sqip(path: &str) -> Result<String, AppError> {
         b: c_path.as_bytes().len() as i64,
     };
     let result = unsafe { MakeSVG(go_string) };
-    let c_str = unsafe { CStr::from_ptr(result.a) };
+    let c_str = unsafe { CStr::from_ptr(result) };
     let string = c_str.to_str().expect("Error translating SQIP from library");
     match string.is_empty() || string.starts_with("Error") {
         true => Err(AppError::SQIP {}),
