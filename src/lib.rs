@@ -13,7 +13,6 @@ mod source;
 mod sqip;
 
 use crate::command_line::Options;
-use crate::constants::*;
 use crate::data::Data;
 use crate::error::AppError;
 use crate::fallback_image::FallbackImage;
@@ -25,39 +24,46 @@ use indicatif::ProgressBar;
 use s3::bucket::Bucket;
 use s3::credentials::Credentials;
 use scraper::{Html, Selector};
-use std::fs::{create_dir_all, read_dir, read_to_string, DirEntry, File};
+use std::fs::{create_dir_all, metadata, read_dir, read_to_string, DirEntry, File};
 use std::io::copy;
 use std::io::Read;
 use std::path::PathBuf;
 use zip::ZipArchive;
 
-/// Upload to S3
+/// Upload images from a directory to S3
 pub fn upload_images(
     image_directory: &PathBuf,
-    directory: &Option<String>,
+    s3_sub_directory: &Option<String>,
     now: DateTime<Local>,
 ) -> Result<(), AppError> {
-    //TODO: Concurrency
     let files = read_dir(image_directory)?
         .filter_map(|result| result.ok())
         .map(|entry| entry.path())
         .filter(|path| !path.is_dir())
         .collect::<Vec<PathBuf>>();
 
-    let prefix = get_prefix(directory, now);
+    let total_size: u64 = files
+        .iter()
+        .filter_map(|path| metadata(path).ok())
+        .map(|a| a.len())
+        .sum();
 
-    let region = REGION.parse()?;
+    let prefix = get_prefix(s3_sub_directory, now);
+
+    let region = constants::REGION.parse()?;
     // Loads from environment variables
     let credentials = Credentials::new(None, None, None, None);
-    let bucket = Bucket::new(BUCKET_NAME, region, credentials)?;
+    let bucket = Bucket::new(constants::BUCKET_NAME, region, credentials)?;
 
-    let bar = ProgressBar::new(files.len() as u64);
+    //TODO: Concurrency
+    let bar = ProgressBar::new(total_size);
     for path in files {
         let file_name = path.file_name().unwrap().to_str().unwrap();
         let s3_path = [&prefix, file_name].join("");
         let mut file_contents = std::fs::File::open(&path)?;
         let metadata = file_contents.metadata()?;
-        let mut bytes: Vec<u8> = Vec::with_capacity(metadata.len() as usize);
+        let size = metadata.len();
+        let mut bytes: Vec<u8> = Vec::with_capacity(size as usize);
         file_contents.read_to_end(&mut bytes)?;
 
         let parts: Vec<&str> = file_name.split('.').collect();
@@ -71,7 +77,7 @@ pub fn upload_images(
             None => "text/plain",
         };
         bucket.put_object(&s3_path, &bytes, mime_type)?;
-        bar.inc(1);
+        bar.inc(size);
     }
     bar.finish_and_clear();
     Result::Ok(())
@@ -81,8 +87,8 @@ pub fn upload_images(
 pub fn generate_data(options: &Options, image_directory: &PathBuf, now: DateTime<Local>) -> Data {
     let html = get_html(&options.template).unwrap();
     let prefix = [
-        BUCKET_NAME.to_owned(),
-        get_prefix(&options.s3_directory, now),
+        constants::WEB_PREFIX,
+        &get_prefix(&options.s3_directory, now),
     ]
     .join("");
     let fallback_image = get_fallback_image(&html, &prefix, image_directory);
@@ -186,7 +192,7 @@ fn get_html(src_path: &PathBuf) -> Result<Html, AppError> {
 /// Example: images/12/25/christmas/
 fn get_prefix(directory: &Option<String>, now: DateTime<Local>) -> String {
     let year = now.year();
-    let month = MONTH_NAMES[now.month0() as usize];
+    let month = constants::MONTH_NAMES[now.month0() as usize];
 
     match directory {
         Some(directory) => format!(
