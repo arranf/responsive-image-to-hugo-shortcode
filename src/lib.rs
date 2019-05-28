@@ -22,7 +22,6 @@ use crate::sqip::*;
 
 use chrono::prelude::*;
 use indicatif::ProgressBar;
-use regex::Regex;
 use s3::bucket::Bucket;
 use s3::credentials::Credentials;
 use scraper::{Html, Selector};
@@ -74,7 +73,7 @@ pub fn upload_images(
         bucket.put_object(&s3_path, &bytes, mime_type)?;
         bar.inc(1);
     }
-    bar.finish();
+    bar.finish_and_clear();
     Result::Ok(())
 }
 
@@ -118,7 +117,7 @@ pub fn write_data_to_hugo_data_template(
         existing_data = vec![data];
     }
 
-    info!("Writing index to {}", &output_location.to_string_lossy());
+    debug!("Writing index to {}", &output_location.to_string_lossy());
 
     create_dir_all(&output_location.with_file_name(""))?;
     let serialized_data = serde_json::to_string(&existing_data)?;
@@ -166,7 +165,7 @@ pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<Path
         }
         bar.inc(1);
     }
-    bar.finish();
+    bar.finish_and_clear();
 
     let paths = read_dir(temp_directory)?;
     let directories: Vec<DirEntry> = paths
