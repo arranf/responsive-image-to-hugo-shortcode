@@ -2,7 +2,6 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 use crate::error::AppError;
-use base64::encode;
 
 extern "C" {
     fn MakeSVG(path: GoString) -> *const c_char;
@@ -26,7 +25,10 @@ pub fn make_sqip(path: &str) -> Result<String, AppError> {
     let c_str = unsafe { CStr::from_ptr(result) };
     let string = c_str.to_str().expect("Error translating SQIP from library");
     match string.is_empty() || string.starts_with("Error") {
-        true => Err(AppError::SQIP {}),
-        false => Ok(encode(&string)),
+        true => {
+            error!("Failed to get SQIP from SQIP library: {}", string);
+            Err(AppError::SQIP {})
+        }
+        false => Ok(base64::encode(&string)),
     }
 }

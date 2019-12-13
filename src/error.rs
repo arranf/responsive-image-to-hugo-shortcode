@@ -8,5 +8,5 @@ custom_error! {pub AppError // Enum name
     Unzip{source: ZipError} = "Error unzipping images",
     Serde{source: serde_json::error::Error } = "Error saving or fetching data",
     SQIP{} = "Error obtaining SQIP placeholder",
-    S3{source: s3::error::S3Error} = "Error uploadging to S3"
+    S3{source: s3::error::S3Error} = "Error uploading to S3"
 }

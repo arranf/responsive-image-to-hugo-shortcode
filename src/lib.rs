@@ -241,7 +241,7 @@ fn get_sources(html: &Html, prefix: &str, image_directory: &PathBuf) -> Vec<Sour
         path.push(filename);
 
         debug!("Making SVG placeholder");
-        let svg_placeholder = make_sqip(&path.to_string_lossy()).expect("Failed to get SQIP");
+        let svg_placeholder = make_sqip(&path.to_string_lossy()).expect("Error getting SQIP");
 
         sources.push(Source::new(
             media.to_owned(),
@@ -401,5 +401,4 @@ mod tests {
             )
         )
     }
-
 }

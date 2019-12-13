@@ -29,13 +29,12 @@ fn main() -> Result<(), AppError> {
     .init();
 
     let options = Options::from_args();
-    let temp_dir = Builder::new().prefix("rith").tempdir()?;;
+    let temp_dir = Builder::new().prefix("rith").tempdir()?;
+    let temp_dir_path = &temp_dir.path().to_path_buf();
 
     info!("Unzipping images");
-    let image_directory = responsive_image_to_hugo_template::unzip_images(
-        &options.images_zip,
-        &temp_dir.path().to_path_buf(),
-    )?;
+    let image_directory =
+        responsive_image_to_hugo_template::unzip_images(&options.images_zip, &temp_dir_path)?;
 
     // Generate a single timestamp to use for the whole program
     let now = Local::now();
@@ -62,7 +61,6 @@ fn main() -> Result<(), AppError> {
         "Shortcode: \n \n{{{{< picture name=\"{0}\" caption=\"\" >}}}}\n",
         &options.name
     );
-
     temp_dir.close()?;
     Ok(())
 }
