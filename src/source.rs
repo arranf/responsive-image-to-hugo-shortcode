@@ -8,11 +8,11 @@ pub struct Source {
 
 impl Source {
     pub fn new(media: String, sizes: String, srcset: String, placeholder: String) -> Self {
-        Source {
-            media: media,
-            sizes: sizes,
-            srcset: srcset,
-            placeholder: placeholder,
+        Self {
+            media,
+            sizes,
+            srcset,
+            placeholder,
         }
     }
 }

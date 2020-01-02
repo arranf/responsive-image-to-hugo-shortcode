@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+
 #[macro_use]
 extern crate log;
 
@@ -56,14 +58,14 @@ pub fn upload_images(
     let bucket = Bucket::new(constants::BUCKET_NAME, region, credentials)?;
 
     //TODO: Concurrency
-    let bar = ProgressBar::new(total_size);
+    let progress_bar = ProgressBar::new(total_size);
     for path in files {
         let file_name = path.file_name().unwrap().to_str().unwrap();
         let s3_path = [&prefix, file_name].join("");
         let mut file_contents = std::fs::File::open(&path)?;
         let metadata = file_contents.metadata()?;
-        let size = metadata.len();
-        let mut bytes: Vec<u8> = Vec::with_capacity(size as usize);
+        let size: usize = metadata.len() as usize;
+        let mut bytes: Vec<u8> = Vec::with_capacity(size);
         file_contents.read_to_end(&mut bytes)?;
 
         let parts: Vec<&str> = file_name.split('.').collect();
@@ -77,9 +79,9 @@ pub fn upload_images(
             None => "text/plain",
         };
         bucket.put_object(&s3_path, &bytes, mime_type)?;
-        bar.inc(size);
+        progress_bar.inc(size as u64);
     }
-    bar.finish_and_clear();
+    progress_bar.finish_and_clear();
     Result::Ok(())
 }
 
@@ -96,7 +98,7 @@ pub fn generate_data(options: &Options, image_directory: &PathBuf, now: DateTime
     Data {
         name: options.name.clone(),
         fallback: fallback_image,
-        sources: sources,
+        sources,
     }
 }
 
@@ -112,7 +114,7 @@ pub fn write_data_to_hugo_data_template(
         existing_data = serde_json::from_str(&read_to_string(&output_location)?)?;
 
         // See if data already exists and should be updated
-        match existing_data.iter().position(|a| &a.name == &data.name) {
+        match existing_data.iter().position(|a| a.name == data.name) {
             Some(index) => {
                 existing_data.swap_remove(index);
                 existing_data.push(data);
@@ -138,7 +140,7 @@ pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<Path
     let reader = std::io::BufReader::new(file);
 
     let mut zip = ZipArchive::new(reader)?;
-    let bar = ProgressBar::new(zip.len() as u64);
+    let progress_bar = ProgressBar::new(zip.len() as u64);
     // TODO: Concurrency
     for i in 0..zip.len() {
         let mut file = zip.by_index(i)?;
@@ -169,9 +171,9 @@ pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<Path
                 file.size()
             );
         }
-        bar.inc(1);
+        progress_bar.inc(1);
     }
-    bar.finish_and_clear();
+    progress_bar.finish_and_clear();
 
     let paths = read_dir(temp_directory)?;
     let directories: Vec<DirEntry> = paths
@@ -207,7 +209,7 @@ fn get_prefix(directory: &Option<String>, now: DateTime<Local>) -> String {
 
 /// Ensures the srcset points to the correct CDN
 fn prefix_source(srcset: &str, prefix: &str) -> String {
-    return srcset
+    srcset
         .split("w,")
         // Prefix
         .map(|img| [prefix, img.trim()].join(""))
@@ -215,7 +217,7 @@ fn prefix_source(srcset: &str, prefix: &str) -> String {
         .fold("".to_owned(), |acc, value| match acc.as_ref() {
             "" => [acc, value].join(""),
             _ => [acc, "w,".to_owned(), value].join(""),
-        });
+        })
 }
 
 ///
@@ -232,9 +234,9 @@ fn get_sources(html: &Html, prefix: &str, image_directory: &PathBuf) -> Vec<Sour
 
         // Get filename of best quality file (last) and generate a SQIP
         // Split robot_ar_1_1,c_fill,g_auto__c_scale,w_200.png 200w, robot_ar_1_1,c_fill,g_auto__c_scale,w_335.png 335w,
-        let split: Vec<&str> = srcset.split("/").collect();
+        let split: Vec<&str> = srcset.split('/').collect();
         // Split robot_ar_1_1,c_fill,g_auto__c_scale,w_335.png 335w,
-        let filename = split.last().unwrap().split(" ").collect::<Vec<&str>>();
+        let filename = split.last().unwrap().split(' ').collect::<Vec<&str>>();
         // Take robot_ar_1_1,c_fill,g_auto__c_scale,w_335.png
         let filename = filename.first().unwrap();
         let mut path = image_directory.clone();
@@ -278,7 +280,7 @@ mod tests {
     use std::str::FromStr;
     use tempfile::tempdir;
 
-    const ZIP_FILE: &'static str = "./test/example_zip.zip";
+    const ZIP_FILE: &str = "./test/example_zip.zip";
 
     #[test]
     fn test_unzip_images_happy() {

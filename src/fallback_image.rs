@@ -8,11 +8,11 @@ pub struct FallbackImage {
 
 impl FallbackImage {
     pub fn new(src: String, sizes: String, srcset: String, placeholder: String) -> Self {
-        FallbackImage {
-            src: src,
-            sizes: sizes,
-            srcset: srcset,
-            placeholder: placeholder,
+        Self {
+            src,
+            sizes,
+            srcset,
+            placeholder,
         }
     }
 }
