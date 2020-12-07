@@ -1,7 +1,7 @@
 # responsivebreakpoints.com Image to Hugo Template
 
 
-This program is used to produce a Hugo shortcode from the input of a .zip file and HTML from [responsivebreakpints.com](https://responsivebreakpoints.com)
+This program is used to produce a Hugo shortcode from the input of a .zip file and HTML from [responsivebreakpoints.com](https://responsivebreakpoints.com)
 
 It does this in three steps:
 1. Writing to the [Hugo images data template](https://gohugo.io/templates/data-templates/)
