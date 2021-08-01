@@ -145,7 +145,7 @@ pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<Path
     for i in 0..zip.len() {
         let mut file = zip.by_index(i)?;
 
-        let outpath = temp_directory.join(file.sanitized_name());
+        let outpath = temp_directory.join(file.enclosed_name().ok_or(AppError::UnzipPath {})?);
 
         if (&*file.name()).ends_with('/') {
             // Handle directories
@@ -242,8 +242,13 @@ fn get_sources(html: &Html, prefix: &str, image_directory: &PathBuf) -> Vec<Sour
         let mut path = image_directory.clone();
         path.push(filename);
 
-        debug!("Making SVG placeholder");
-        let svg_placeholder = make_sqip(&path.to_string_lossy()).expect("Error getting SQIP");
+        let svg_placeholder;
+        if cfg!(test) {
+            svg_placeholder = String::new()
+        } else {
+            debug!("Making SVG placeholder");
+            svg_placeholder = make_sqip(&path.to_string_lossy()).expect("Error getting SQIP");
+        }
 
         sources.push(Source::new(
             media.to_owned(),
@@ -267,7 +272,14 @@ fn get_fallback_image(html: &Html, prefix: &str, image_directory: &PathBuf) -> F
     let filename = img.attr("src").unwrap();
     let mut path = image_directory.clone();
     path.push(&filename);
-    let svg_placeholder = make_sqip(&path.to_string_lossy()).expect("Failed to get SQIP");
+
+    let svg_placeholder;
+    if cfg!(test) {
+        svg_placeholder = String::new()
+    } else {
+        debug!("Making SVG placeholder");
+        svg_placeholder = make_sqip(&path.to_string_lossy()).expect("Error getting SQIP");
+    }
 
     FallbackImage::new(src, sizes.to_owned(), srcset, svg_placeholder)
 }
@@ -282,6 +294,11 @@ mod tests {
 
     const ZIP_FILE: &str = "./test/example_zip.zip";
 
+    fn init() {
+        let _ = env_logger::builder().is_test(true).try_init();
+    }
+
+    // TODO: make integration test
     #[test]
     fn test_unzip_images_happy() {
         let dest_dir = tempdir().unwrap();
@@ -301,11 +318,12 @@ mod tests {
 
         // The inner files should have been unzipped
         let file_count = read_dir(directory).unwrap().count();
-        assert_eq!(file_count, 18);
+        assert_eq!(file_count, 52);
 
         dest_dir.close().unwrap();
     }
 
+    // TODO: make integration test
     #[test]
     fn test_unzip_images_error() {
         let dest_dir = tempdir().unwrap();
@@ -322,6 +340,7 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // TODO: remove external dependency
     #[test]
     fn test_get_html_happy_path() {
         let src_path = PathBuf::from_str("./test/example_input.txt").unwrap();
@@ -364,6 +383,7 @@ mod tests {
 
     #[test]
     fn test_get_sources() {
+        init();
         let src_path = PathBuf::from_str("./test/example_input.txt").unwrap();
         let html = get_html(&src_path).unwrap();
         let result = get_sources(
@@ -386,6 +406,7 @@ mod tests {
 
     #[test]
     fn test_get_fallback_image() {
+        init();
         let src_path = PathBuf::from_str("./test/example_input.txt").unwrap();
         let html = get_html(&src_path).unwrap();
         let result = get_fallback_image(
@@ -398,7 +419,7 @@ mod tests {
             FallbackImage::new(
                 "images/2019/Jun/test_prefix/robot_c_scale,w_2000.png".to_owned(),
                 "(max-width: 5000px) 40vw, 2000px".to_owned(),
-                "images/2019/Jun/test_prefix/robot_c_scale,w_480.png 480w,images/2019/Jun/test_prefix/robot_c_scale,w_589.png 589w,images/2019/Jun/test_prefix/robot_c_scale,w_700.png 700w,images/2019/Jun/test_prefix/robot_c_scale,w_823.png 823w,images/2019/Jun/test_prefix/robot_c_scale,w_868.png 868w,images/2019/Jun/test_prefix/robot_c_scale,w_962.png 962w,images/2019/Jun/test_prefix/robot_c_scale,w_1044.png 1044w,images/2019/Jun/test_prefix/robot_c_scale,w_1125.png 1125w,images/2019/Jun/test_prefix/robot_c_scale,w_1196.png 1196w,images/2019/Jun/test_prefix/robot_c_scale,w_1277.png 1277w,images/2019/Jun/test_prefix/robot_c_scale,w_1346.png 1346w,images/2019/Jun/test_prefix/robot_c_scale,w_1415.png 1415w,images/2019/Jun/test_prefix/robot_c_scale,w_1484.png 1484w,images/2019/Jun/test_prefix/robot_c_scale,w_1482.png 1482w,images/2019/Jun/test_prefix/robot_c_scale,w_1726.png 1726w,images/2019/Jun/test_prefix/robot_c_scale,w_1741.png 1741w,images/2019/Jun/test_prefix/robot_c_scale,w_1798.png 1798w,images/2019/Jun/test_prefix/robot_c_scale,w_1866.png 1866w,images/2019/Jun/test_prefix/robot_c_scale,w_2000.png 2000w".to_owned(),
+                "images/2019/Jun/test_prefix/robot_c_scale,w_480.png 480w,images/2019/Jun/test_prefix/robot_c_scale,w_587.png 587w,images/2019/Jun/test_prefix/robot_c_scale,w_695.png 695w,images/2019/Jun/test_prefix/robot_c_scale,w_789.png 789w,images/2019/Jun/test_prefix/robot_c_scale,w_883.png 883w,images/2019/Jun/test_prefix/robot_c_scale,w_962.png 962w,images/2019/Jun/test_prefix/robot_c_scale,w_1044.png 1044w,images/2019/Jun/test_prefix/robot_c_scale,w_1125.png 1125w,images/2019/Jun/test_prefix/robot_c_scale,w_1196.png 1196w,images/2019/Jun/test_prefix/robot_c_scale,w_1277.png 1277w,images/2019/Jun/test_prefix/robot_c_scale,w_1346.png 1346w,images/2019/Jun/test_prefix/robot_c_scale,w_1415.png 1415w,images/2019/Jun/test_prefix/robot_c_scale,w_1484.png 1484w,images/2019/Jun/test_prefix/robot_c_scale,w_1482.png 1482w,images/2019/Jun/test_prefix/robot_c_scale,w_1726.png 1726w,images/2019/Jun/test_prefix/robot_c_scale,w_1741.png 1741w,images/2019/Jun/test_prefix/robot_c_scale,w_1798.png 1798w,images/2019/Jun/test_prefix/robot_c_scale,w_1866.png 1866w,images/2019/Jun/test_prefix/robot_c_scale,w_2000.png 2000w".to_owned(),
                 "".to_owned()
             )
         )

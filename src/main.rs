@@ -33,6 +33,7 @@ fn main() -> Result<(), AppError> {
     let temp_dir_path = &temp_dir.path().to_path_buf();
 
     info!("Unzipping images");
+    debug!("Temp directory: {:?}", temp_dir_path);
     let image_directory =
         responsive_image_to_hugo_template::unzip_images(&options.images_zip, &temp_dir_path)?;
 

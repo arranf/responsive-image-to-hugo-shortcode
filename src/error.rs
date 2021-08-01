@@ -6,6 +6,7 @@ custom_error! {pub AppError // Enum name
     // Specific types
     Io{source: std::io::Error}            = "Error performing IO",
     Unzip{source: ZipError} = "Error unzipping images",
+    UnzipPath{} = "Error getting Zip path",
     Serde{source: serde_json::error::Error } = "Error saving or fetching data",
     SQIP{} = "Error obtaining SQIP placeholder",
     S3{source: s3::error::S3Error} = "Error uploading to S3"
