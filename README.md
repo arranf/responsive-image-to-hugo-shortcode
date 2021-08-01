@@ -2,7 +2,7 @@
 
 ## Summary
 
-This program is used to produce a Hugo shortcode from the input of a .zip file and HTML from [responsivebreakpints.com](https://responsivebreakpoints.com)
+This program is used to produce a Hugo shortcode from the input of a .zip file and HTML from [responsivebreakpoints.com](https://responsivebreakpoints.com)
 
 It does this in three steps:
 
