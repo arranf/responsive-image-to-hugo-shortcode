@@ -4,6 +4,8 @@ extern crate env_logger;
 #[macro_use]
 extern crate log;
 
+use std::time::Duration;
+
 use env_logger::Env;
 
 use chrono::prelude::*;
@@ -50,7 +52,7 @@ fn main() -> Result<(), AppError> {
     }
 
     let spinner = ProgressBar::new_spinner();
-    spinner.enable_steady_tick(100);
+    spinner.enable_steady_tick(Duration::from_millis(100));
     info!("Generating data file");
     let data = responsive_image_to_hugo_template::generate_data(&options, &image_directory, now);
     debug!("Writing data");

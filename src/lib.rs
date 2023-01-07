@@ -23,8 +23,8 @@ use crate::sqip::*;
 
 use chrono::prelude::*;
 use indicatif::ProgressBar;
+use s3::creds::Credentials;
 use s3::bucket::Bucket;
-use s3::credentials::Credentials;
 use scraper::{Html, Selector};
 use std::fs::{create_dir_all, metadata, read_dir, read_to_string, DirEntry, File};
 use std::io::copy;
@@ -54,7 +54,7 @@ pub fn upload_images(
 
     let region = constants::REGION.parse()?;
     // Loads from environment variables
-    let credentials = Credentials::new(None, None, None, None);
+    let credentials = Credentials::default()?;
     let bucket = Bucket::new(constants::BUCKET_NAME, region, credentials)?;
 
     //TODO: Concurrency
@@ -69,7 +69,6 @@ pub fn upload_images(
         file_contents.read_to_end(&mut bytes)?;
 
         let parts: Vec<&str> = file_name.split('.').collect();
-
         let mime_type = match parts.last() {
             Some(v) => match *v {
                 "png" => "image/png",
@@ -78,7 +77,7 @@ pub fn upload_images(
             },
             None => "text/plain",
         };
-        bucket.put_object(&s3_path, &bytes, mime_type)?;
+        bucket.put_object_with_content_type_blocking(&s3_path, &bytes, mime_type)?;
         progress_bar.inc(size as u64);
     }
     progress_bar.finish_and_clear();
