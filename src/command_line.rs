@@ -31,4 +31,8 @@ pub struct Options {
     /// Skip uploading images
     #[structopt(short = "s", long = "skip-upload")]
     pub skip_upload: bool,
+
+    /// Force overwrite of existing data
+    #[structopt(short = "f", long = "force", alias = "clobber")]
+    pub force_overwrite: bool,
 }

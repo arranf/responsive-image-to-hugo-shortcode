@@ -14,5 +14,6 @@ custom_error! {pub AppError // Enum name
     SQIP{} = "Error obtaining SQIP placeholder",
     S3{source: s3::error::S3Error} = "Error uploading to S3",
     RegionFailure{source: Utf8Error} = "Failed to parse region",
-    CredentialsError{source: CredentialsError} = "Failed to get AWS credentials"
+    CredentialsError{source: CredentialsError} = "Failed to get AWS credentials",
+    KeyAlreadyExists{} = "Key already exists in data template"
 }

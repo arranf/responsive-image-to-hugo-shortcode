@@ -34,6 +34,13 @@ fn main() -> Result<(), AppError> {
     let temp_dir = Builder::new().prefix("rith").tempdir()?;
     let temp_dir_path = &temp_dir.path().to_path_buf();
 
+    let does_data_already_exist = responsive_image_to_hugo_template::is_hugo_data_template_name_collision(&options.name, &options.output)?;
+
+    if does_data_already_exist && !options.force_overwrite {
+        error!("Key {0} already exists in data template and the --force flag is not set. Will not overwrite", &options.name);
+        return Err(AppError::KeyAlreadyExists {  })
+    }
+
     info!("Unzipping images");
     debug!("Temp directory: {:?}", temp_dir_path);
     let image_directory =

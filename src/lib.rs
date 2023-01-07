@@ -96,12 +96,27 @@ pub fn generate_data(options: &Options, image_directory: &PathBuf, now: DateTime
     let sources = get_sources(&html, &prefix, image_directory);
     Data {
         name: options.name.clone(),
+        should_overwrite: options.force_overwrite,
         fallback: fallback_image,
         sources,
     }
 }
 
-/// Writes data to the spciefied location as JSON
+/// Checks if the name key is already used in the hugo data template
+
+pub fn is_hugo_data_template_name_collision(name: &String, output_location: &Option<PathBuf>) -> Result<bool, AppError> {
+    let name = name.to_owned();
+    let output_location = output_location.to_owned().unwrap_or_else(|| PathBuf::from("./data/images.json"));
+    if output_location.exists() {
+        let existing_data: Vec<Data> = serde_json::from_str(&read_to_string(&output_location)?)?;
+        // See if data already exists 
+        Ok(existing_data.iter().position(|a| a.name == name).is_some())
+    } else {
+        Ok(false)
+    }
+}
+
+/// Writes data to the specified location as JSON
 pub fn write_data_to_hugo_data_template(
     data: Data,
     output_location: Option<PathBuf>,
@@ -115,8 +130,12 @@ pub fn write_data_to_hugo_data_template(
         // See if data already exists and should be updated
         match existing_data.iter().position(|a| a.name == data.name) {
             Some(index) => {
-                existing_data.swap_remove(index);
-                existing_data.push(data);
+                if data.should_overwrite {
+                    existing_data.swap_remove(index);
+                    existing_data.push(data);
+                } else {
+                    return Err(AppError::KeyAlreadyExists {  });
+                }
             }
             None => existing_data.push(data),
         }
