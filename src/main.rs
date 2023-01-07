@@ -24,7 +24,7 @@ use indicatif::ProgressBar;
 /// I go into detail on the reasons behind this program [in a blog post](https://blog.arranfrance.com/post/responsive-blog-images/)
 fn main() -> Result<(), AppError> {
     env_logger::Builder::from_env(
-        Env::new().filter_or("RESPOSIVE_IMAGE_TO_HUGO_TEMPLATE_LOG", "info"),
+        Env::new().filter_or("RESPONSIVE_IMAGE_TO_HUGO_TEMPLATE_LOG", "info"),
     )
     .init();
 
