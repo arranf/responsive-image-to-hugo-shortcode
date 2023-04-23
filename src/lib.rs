@@ -55,7 +55,7 @@ pub fn upload_images(
     let region = constants::REGION.parse()?;
     // Loads from environment variables
     let credentials = Credentials::default()?;
-    let bucket = Bucket::new(constants::BUCKET_NAME, region, credentials)?;
+    let bucket = Bucket::new(constants::BUCKET_NAME, region, credentials)?.with_path_style();
 
     //TODO: Concurrency
     let progress_bar = ProgressBar::new(total_size);
@@ -373,8 +373,7 @@ mod tests {
         // This directory path should have a / appended to it and a / stripped from the front
         let directory = "/tmp/something/arran".to_owned();
         let now: DateTime<Local> = Local
-            .ymd(2012, 4, 6)
-            .and_time(NaiveTime::from_hms(12, 12, 12))
+            .with_ymd_and_hms(2012, 4, 6, 12, 12, 12)
             .unwrap();
         assert_eq!(
             "images/2012/Apr/tmp/something/arran/",
@@ -385,8 +384,7 @@ mod tests {
     #[test]
     fn test_get_prefix_without_directory() {
         let now: DateTime<Local> = Local
-            .ymd(2005, 5, 19)
-            .and_time(NaiveTime::from_hms(12, 12, 12))
+            .with_ymd_and_hms(2012, 4, 6, 12, 12, 12)
             .unwrap();
         assert_eq!("images/2005/May/", get_prefix(&None, now));
     }
