@@ -44,7 +44,7 @@ fn main() -> Result<(), AppError> {
     info!("Unzipping images");
     debug!("Temp directory: {:?}", temp_dir_path);
     let image_directory =
-        responsive_image_to_hugo_template::unzip_images(&options.images_zip, &temp_dir_path)?;
+        responsive_image_to_hugo_template::unzip_images(&options.images_zip, temp_dir_path)?;
 
     // Generate a single timestamp to use for the whole program
     let now = Local::now();
@@ -63,7 +63,7 @@ fn main() -> Result<(), AppError> {
     info!("Generating data file");
     let data = responsive_image_to_hugo_template::generate_data(&options, &image_directory, now);
     debug!("Writing data");
-    responsive_image_to_hugo_template::write_data_to_hugo_data_template(data, options.output)?;
+    responsive_image_to_hugo_template::write_data_to_hugo_data_template(data, options.output, options.force_overwrite)?;
     spinner.finish();
 
     // Print template

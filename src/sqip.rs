@@ -1,4 +1,4 @@
-use num_cpus;
+
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_longlong};
 
@@ -41,7 +41,7 @@ pub fn make_sqip(path: &str) -> Result<String, AppError> {
         error!("Failed to get SQIP from SQIP library: {}", string);
         Err(AppError::SQIP {})
     } else {
-        Ok(base64::encode(&string))
+        Ok(base64::encode(string))
     }
 }
 

@@ -6,5 +6,4 @@ pub struct Data {
     pub name: String,
     pub fallback: FallbackImage,
     pub sources: Vec<Source>,
-    pub should_overwrite: bool
 }

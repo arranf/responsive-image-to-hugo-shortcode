@@ -29,7 +29,7 @@ use scraper::{Html, Selector};
 use std::fs::{create_dir_all, metadata, read_dir, read_to_string, DirEntry, File};
 use std::io::copy;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
 use zip::ZipArchive;
 
 /// Upload images from a directory to S3
@@ -85,7 +85,7 @@ pub fn upload_images(
 }
 
 /// Creates the data to be written to file
-pub fn generate_data(options: &Options, image_directory: &PathBuf, now: DateTime<Local>) -> Data {
+pub fn generate_data(options: &Options, image_directory: &Path, now: DateTime<Local>) -> Data {
     let html = get_html(&options.template).unwrap();
     let prefix = [
         constants::WEB_PREFIX,
@@ -96,7 +96,6 @@ pub fn generate_data(options: &Options, image_directory: &PathBuf, now: DateTime
     let sources = get_sources(&html, &prefix, image_directory);
     Data {
         name: options.name.clone(),
-        should_overwrite: options.force_overwrite,
         fallback: fallback_image,
         sources,
     }
@@ -110,7 +109,7 @@ pub fn is_hugo_data_template_name_collision(name: &String, output_location: &Opt
     if output_location.exists() {
         let existing_data: Vec<Data> = serde_json::from_str(&read_to_string(&output_location)?)?;
         // See if data already exists 
-        Ok(existing_data.iter().position(|a| a.name == name).is_some())
+        Ok(existing_data.iter().any(|a| a.name == name))
     } else {
         Ok(false)
     }
@@ -120,6 +119,7 @@ pub fn is_hugo_data_template_name_collision(name: &String, output_location: &Opt
 pub fn write_data_to_hugo_data_template(
     data: Data,
     output_location: Option<PathBuf>,
+    should_overwrite: bool
 ) -> Result<(), AppError> {
     let output_location = output_location.unwrap_or_else(|| PathBuf::from("./data/images.json"));
     let mut existing_data: Vec<Data>;
@@ -130,7 +130,7 @@ pub fn write_data_to_hugo_data_template(
         // See if data already exists and should be updated
         match existing_data.iter().position(|a| a.name == data.name) {
             Some(index) => {
-                if data.should_overwrite {
+                if should_overwrite {
                     existing_data.swap_remove(index);
                     existing_data.push(data);
                 } else {
@@ -145,7 +145,7 @@ pub fn write_data_to_hugo_data_template(
 
     debug!("Writing index to {}", &output_location.to_string_lossy());
 
-    create_dir_all(&output_location.with_file_name(""))?;
+    create_dir_all(output_location.with_file_name(""))?;
     let serialized_data = serde_json::to_string(&existing_data)?;
     std::fs::write(&output_location, serialized_data)?;
     info!("Index written to {}", &output_location.to_string_lossy());
@@ -154,7 +154,7 @@ pub fn write_data_to_hugo_data_template(
 
 /// Unzip images to a temporary directory
 pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<PathBuf, AppError> {
-    let file = File::open(&zip_path)?;
+    let file = File::open(zip_path)?;
     let reader = std::io::BufReader::new(file);
 
     let mut zip = ZipArchive::new(reader)?;
@@ -165,7 +165,7 @@ pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<Path
 
         let outpath = temp_directory.join(file.enclosed_name().ok_or(AppError::UnzipPath {})?);
 
-        if (&*file.name()).ends_with('/') {
+        if (*file.name()).ends_with('/') {
             // Handle directories
             debug!(
                 "Directory {} extracted to \"{}\"",
@@ -177,7 +177,7 @@ pub fn unzip_images(zip_path: &PathBuf, temp_directory: &PathBuf) -> Result<Path
             // Handle files
             if let Some(p) = outpath.parent() {
                 if !p.exists() {
-                    create_dir_all(&p).unwrap();
+                    create_dir_all(p).unwrap();
                 }
             }
             let mut outfile = File::create(&outpath)?;
@@ -239,7 +239,7 @@ fn prefix_source(srcset: &str, prefix: &str) -> String {
 }
 
 ///
-fn get_sources(html: &Html, prefix: &str, image_directory: &PathBuf) -> Vec<Source> {
+fn get_sources(html: &Html, prefix: &str, image_directory: &Path) -> Vec<Source> {
     let mut sources: Vec<Source> = Vec::new();
 
     let selector = Selector::parse("source").unwrap();
@@ -257,16 +257,16 @@ fn get_sources(html: &Html, prefix: &str, image_directory: &PathBuf) -> Vec<Sour
         let filename = split.last().unwrap().split(' ').collect::<Vec<&str>>();
         // Take robot_ar_1_1,c_fill,g_auto__c_scale,w_335.png
         let filename = filename.first().unwrap();
-        let mut path = image_directory.clone();
+        let mut path = image_directory.to_path_buf();
         path.push(filename);
 
-        let svg_placeholder;
+        let svg_placeholder = 
         if cfg!(test) {
-            svg_placeholder = String::new()
+            String::new()
         } else {
             debug!("Making SVG placeholder");
-            svg_placeholder = make_sqip(&path.to_string_lossy()).expect("Error getting SQIP");
-        }
+            make_sqip(&path.to_string_lossy()).expect("Error getting SQIP")
+        };
 
         sources.push(Source::new(
             media.to_owned(),
@@ -279,25 +279,25 @@ fn get_sources(html: &Html, prefix: &str, image_directory: &PathBuf) -> Vec<Sour
 }
 
 /// Create a [SQIP](https://www.afasterweb.com/2018/04/25/smooth-out-low-quality-placeholders-with-sqip/) to use as a placeholder for **only** the `img` tag
-fn get_fallback_image(html: &Html, prefix: &str, image_directory: &PathBuf) -> FallbackImage {
+fn get_fallback_image(html: &Html, prefix: &str, image_directory: &Path) -> FallbackImage {
     let img_selector = Selector::parse("img").unwrap();
-    let img = html.select(&img_selector).nth(0).unwrap().value();
+    let img = html.select(&img_selector).next().unwrap().value();
     let sizes = img.attr("sizes").unwrap();
     let srcset = prefix_source(img.attr("srcset").unwrap(), prefix);
     let src = prefix_source(img.attr("src").unwrap(), prefix);
 
     // Generate SVG
     let filename = img.attr("src").unwrap();
-    let mut path = image_directory.clone();
-    path.push(&filename);
+    let mut path = image_directory.to_path_buf();
+    path.push(filename);
 
-    let svg_placeholder;
+    let svg_placeholder =
     if cfg!(test) {
-        svg_placeholder = String::new()
+        String::new()
     } else {
         debug!("Making SVG placeholder");
-        svg_placeholder = make_sqip(&path.to_string_lossy()).expect("Error getting SQIP");
-    }
+        make_sqip(&path.to_string_lossy()).expect("Error getting SQIP")
+    };
 
     FallbackImage::new(src, sizes.to_owned(), srcset, svg_placeholder)
 }
