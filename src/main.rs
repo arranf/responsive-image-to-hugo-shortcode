@@ -55,6 +55,7 @@ fn main() -> Result<(), AppError> {
             &image_directory,
             &options.s3_directory,
             now,
+            &options.hq_path
         )?;
     }
 

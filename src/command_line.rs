@@ -20,6 +20,10 @@ pub struct Options {
     #[structopt(parse(from_os_str))]
     pub template: PathBuf,
 
+    /// The path to a high quality image. This is the image that will be rendered when the client wants to see the best version of the image.
+    #[structopt(short = "hq", long = "highquality", parse(from_os_str))]
+    pub hq_path: Option<PathBuf>,
+
     /// The S3 sub-directory to add the files to
     #[structopt(short = "d", long = "directory")]
     pub s3_directory: Option<String>,

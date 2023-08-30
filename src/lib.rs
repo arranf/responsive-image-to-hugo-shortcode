@@ -37,12 +37,17 @@ pub fn upload_images(
     image_directory: &PathBuf,
     s3_sub_directory: &Option<String>,
     now: DateTime<Local>,
+    high_quality_file: &Option<PathBuf>
 ) -> Result<(), AppError> {
-    let files = read_dir(image_directory)?
+    let mut files = read_dir(image_directory)?
         .filter_map(|result| result.ok())
         .map(|entry| entry.path())
         .filter(|path| !path.is_dir())
         .collect::<Vec<PathBuf>>();
+
+    if high_quality_file.is_some() {
+        files.push(high_quality_file.clone().unwrap());
+    }
 
     let total_size: u64 = files
         .iter()
@@ -94,11 +99,18 @@ pub fn generate_data(options: &Options, image_directory: &Path, now: DateTime<Lo
     .join("");
     let fallback_image = get_fallback_image(&html, &prefix, image_directory);
     let sources = get_sources(&html, &prefix, image_directory);
+    let hqimage: Option<String> = options.hq_path.clone().map(get_s3_hq_uri);
     Data {
         name: options.name.clone(),
         fallback: fallback_image,
         sources,
+        hqimage
     }
+}
+
+fn get_s3_hq_uri(high_quality_file: PathBuf) -> String {
+    let file_name = high_quality_file.file_name().expect("Expected high quality image path to end in a file name");
+    file_name.to_string_lossy().into_owned()
 }
 
 /// Checks if the name key is already used in the hugo data template
