@@ -65,28 +65,31 @@ pub fn upload_images(
     //TODO: Concurrency
     let progress_bar = ProgressBar::new(total_size);
     for path in files {
-        let file_name = path.file_name().unwrap().to_str().unwrap();
-        let s3_path = [&prefix, file_name].join("");
+        
+        let s3_path = get_s3_path(&path, &prefix);
         let mut file_contents = std::fs::File::open(&path)?;
         let metadata = file_contents.metadata()?;
         let size: usize = metadata.len() as usize;
         let mut bytes: Vec<u8> = Vec::with_capacity(size);
         file_contents.read_to_end(&mut bytes)?;
 
-        let parts: Vec<&str> = file_name.split('.').collect();
-        let mime_type = match parts.last() {
-            Some(v) => match *v {
+        let extension = path.extension().unwrap().to_str().unwrap();
+        let mime_type = match extension {
                 "png" => "image/png",
                 "jpg" => "image/jpeg",
                 _ => "text/plain",
-            },
-            None => "text/plain",
         };
         bucket.put_object_with_content_type_blocking(&s3_path, &bytes, mime_type)?;
         progress_bar.inc(size as u64);
     }
     progress_bar.finish_and_clear();
     Result::Ok(())
+}
+
+fn get_s3_path(path: &Path, prefix: &String) -> String {
+    let file_name = path.file_name().unwrap().to_str().unwrap();
+    
+    [prefix, file_name].join("")
 }
 
 /// Creates the data to be written to file
@@ -99,7 +102,7 @@ pub fn generate_data(options: &Options, image_directory: &Path, now: DateTime<Lo
     .join("");
     let fallback_image = get_fallback_image(&html, &prefix, image_directory);
     let sources = get_sources(&html, &prefix, image_directory);
-    let hqimage: Option<String> = options.hq_path.clone().map(get_s3_hq_uri);
+    let hqimage: Option<String> = options.hq_path.clone().map(|hq| get_s3_path(&hq, &prefix));
     Data {
         name: options.name.clone(),
         fallback: fallback_image,
@@ -108,13 +111,7 @@ pub fn generate_data(options: &Options, image_directory: &Path, now: DateTime<Lo
     }
 }
 
-fn get_s3_hq_uri(high_quality_file: PathBuf) -> String {
-    let file_name = high_quality_file.file_name().expect("Expected high quality image path to end in a file name");
-    file_name.to_string_lossy().into_owned()
-}
-
 /// Checks if the name key is already used in the hugo data template
-
 pub fn is_hugo_data_template_name_collision(name: &String, output_location: &Option<PathBuf>) -> Result<bool, AppError> {
     let name = name.to_owned();
     let output_location = output_location.to_owned().unwrap_or_else(|| PathBuf::from("./data/images.json"));
