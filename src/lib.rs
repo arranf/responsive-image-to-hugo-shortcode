@@ -73,8 +73,8 @@ pub fn upload_images(
         let mut bytes: Vec<u8> = Vec::with_capacity(size);
         file_contents.read_to_end(&mut bytes)?;
 
-        let extension = path.extension().unwrap().to_str().unwrap();
-        let mime_type = match extension {
+        let extension = path.extension().unwrap().to_str().unwrap().to_lowercase();
+        let mime_type = match extension.as_str() {
                 "png" => "image/png",
                 "jpg" => "image/jpeg",
                 _ => "text/plain",
