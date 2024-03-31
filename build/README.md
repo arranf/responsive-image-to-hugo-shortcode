@@ -1,0 +1,1 @@
+This file is a built version of https://github.com/arranf/sqip-ffi built for OSX M1.

@@ -1,7 +1,7 @@
 [package]
-name = "responsive-image-to-hugo-template"
-version = "0.1.2"
-description = "A library and command line tool for managing images for use with a Hugo site"
+name = "responsive-image-for-hugo"
+version = "0.2.0"
+description = "A library and command line tool for managing images with my Hugo site"
 license = "MIT"
 authors = ["Arran France <arran@arranfrance.com>"]
 edition = "2021"
@@ -9,23 +9,25 @@ categories = ["command-line-utilities"]
 readme = "README.md"
 
 [dependencies]
-env_logger = "0.10.0"
+env_logger = "0.11.3"
+rimage = { version = "0.10.3", features = ["default", "webp"] }
 log = "0.4.20"
 structopt = "0.3.26"
-custom_error = "1.9.2"
-zip = "0.6.6"
-scraper = "0.17.1"
 chrono = "0.4.28"
 regex = "1.9.4"
 tempfile = "3.8.0"
-serde_json = "1.0.105"  
+serde_json = "1.0.105"
 serde = "1.0.188"
 serde_derive = "1.0.188"
-rust-s3 = {version = "0.33.0", features = ["default", "blocking", "tokio"]}
+rust-s3 = { version = "0.33.0", features = ["default", "blocking", "tokio"] }
 indicatif = "0.17.6"
-base64 = "0.21.3"
+base64 = "0.22.0"
 num_cpus = "1.16.0"
-aws-creds = "0.35.0"
+lazy_static = "1.4.0"
+anyhow = "1.0.81"
+thiserror = "1.0.58"
+itertools = "0.12.1"
+kamadak-exif = "0.5.5"
 
 [dev-dependencies]
 assert_cmd = "2.0.7"

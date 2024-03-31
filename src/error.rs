@@ -1,19 +1,27 @@
-use std::str::Utf8Error;
+use thiserror::Error;
 
-use custom_error::custom_error;
+use std::{io, str::Utf8Error};
 
 use s3::creds::error::CredentialsError;
-use zip::result::ZipError;
 
-custom_error! {pub AppError // Enum name
-    // Specific types
-    Io{source: std::io::Error}            = "Error performing IO",
-    Unzip{source: ZipError} = "Error unzipping images",
-    UnzipPath{} = "Error getting Zip path",
-    Serde{source: serde_json::error::Error } = "Error saving or fetching data",
-    SQIP{} = "Error obtaining SQIP placeholder",
-    S3{source: s3::error::S3Error} = "Error uploading to S3",
-    RegionFailure{source: Utf8Error} = "Failed to parse region",
-    CredentialsError{source: CredentialsError} = "Failed to get AWS credentials",
-    KeyAlreadyExists{} = "Key already exists in data template"
+#[derive(Error, Debug)]
+pub enum AppError {
+    #[error("Error reading from or writing to filesystem")]
+    Io(#[from] io::Error),
+    #[error("Error reading from or writing to Hugo's data file")]
+    Serde(#[from] serde_json::error::Error),
+    #[error("Error obtaining SQIP placeholder")]
+    SQIP(),
+    #[error("Error uploading to S3")]
+    S3(#[from] s3::error::S3Error),
+    #[error("Failed to parse region")]
+    RegionParse(#[from] Utf8Error),
+    #[error("Failed to get AWS credentials")]
+    Credentials(#[from] CredentialsError),
+    #[error("Key already exists in data template")]
+    KeyAlreadyExists,
+    #[error("Image is too small")]
+    ImageTooSmall,
+    #[error(transparent)]
+    Other(#[from] anyhow::Error),
 }
