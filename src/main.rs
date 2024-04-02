@@ -105,7 +105,7 @@ fn main() -> Result<(), AppError> {
     if images.len() > 1 {
         for image in images {
             let name = image.get_hugo_data_key(&options);
-            println!("-  {name}");
+            println!("-  name: {name}");
         }
     } else {
         println!(

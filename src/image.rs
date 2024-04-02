@@ -81,7 +81,6 @@ pub fn process_image(
         None => image,
     };
 
-    // Pick maximum array slice based on width of image
     let resizes = compute_resize_pairs(width, height, options.sizes.0.clone())
         .ok_or(AppError::ImageTooSmall)
         .with_context(|| {
@@ -93,7 +92,11 @@ pub fn process_image(
     debug!("Reizes for {}: {:?}", &path.to_string_lossy(), &resizes);
 
     // The largest size is the legacy one
-    let max = width;
+    let max = resizes
+        .iter()
+        .map(|i| i.width)
+        .max()
+        .expect("No need to resizes");
 
     // TODO: Make configurable
     let ext = ".webp";
@@ -205,7 +208,7 @@ fn log_reason_for_no_orientation_fix(reason: NoFixNeededReason) {
     use NoFixNeededReason::*;
 
     match reason {
-        AleadyCorrect | NoOrientationTag => info!("{:?}", reason),
+        AleadyCorrect | NoOrientationTag => debug!("{:?}", reason),
         InvalidOrientationTagValue(_) => error!("{:?}", reason),
     };
 }
@@ -287,11 +290,12 @@ fn create_destination_path(
         })?;
     let img_path = path_from_array(&[
         &output_directory.to_str().expect("Unable to get path"),
-        &options.name,
-        &file_name,
+        &options.name.replace(' ', "-"),
+        &file_name.replace(' ', "-"),
         &([file_name, "-", suffix, ".", ext]
             .join("")
-            .replace("..", ".")),
+            .replace("..", ".")
+            .replace(' ', "-")),
     ]);
     Ok(img_path)
 }

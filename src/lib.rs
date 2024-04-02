@@ -121,9 +121,10 @@ pub fn get_file_s3_bucket_path(path: &Path, prefix: &String) -> String {
         .with_context(|| format!("Failed to get file name for {}", &path.to_string_lossy()))
         .unwrap()
         .to_str()
-        .unwrap();
+        .unwrap()
+        .replace(' ', "-");
 
-    [prefix, file_name].join("")
+    [prefix.to_owned(), file_name].join("")
 }
 
 /// Creates the data to be written to file
@@ -278,7 +279,7 @@ pub fn generate_images(
         }
         progress_bar.inc(1);
     }
-    progress_bar.finish();
+    progress_bar.finish_and_clear();
 
     debug!("Metrics {:?}", m);
     Ok(image_infos)
