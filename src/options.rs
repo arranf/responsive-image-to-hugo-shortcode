@@ -3,15 +3,15 @@ use structopt::StructOpt;
 use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct Sizes(pub Vec<u32>);
+pub struct Sizes(pub Vec<usize>);
 
 impl std::str::FromStr for Sizes {
     type Err = Box<dyn std::error::Error>;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut sizes: Vec<u32> = Vec::new();
+        let mut sizes: Vec<usize> = Vec::new();
         for s in s.split(',') {
-            sizes.push(s.parse::<u32>()?)
+            sizes.push(s.parse::<usize>()?)
         }
         Ok(Self(sizes))
     }

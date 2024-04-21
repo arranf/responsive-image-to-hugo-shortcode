@@ -1,7 +1,7 @@
 #[derive(Debug, Default)]
 pub struct Metrics {
-    pub count: u32,
-    pub resized: u32,
-    pub traversed: u32,
-    pub skipped: u32,
+    pub count: usize,
+    pub resized: usize,
+    pub traversed: usize,
+    pub skipped: usize,
 }

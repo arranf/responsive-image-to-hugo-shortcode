@@ -2,3 +2,10 @@
 **/*.rs.bk
 Cargo.lock
 /data*
+.DS_Store
+*.jpeg
+*.png
+*.jpg
+*.webp
+*.avif
+images.json

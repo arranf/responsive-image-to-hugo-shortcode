@@ -1,18 +1,19 @@
 #![warn(clippy::all)]
 
 pub mod constants;
-mod data;
 pub mod error;
 mod fallback_image;
+mod hugo;
 pub mod image;
 pub mod metrics;
 pub mod options;
 mod source;
 mod sqip;
+pub mod structs;
 
-use crate::data::Data;
 use crate::error::AppError;
 use crate::fallback_image::FallbackImage;
+use crate::hugo::HugoData;
 use crate::image::*;
 use crate::metrics::Metrics;
 use crate::options::Options;
@@ -26,6 +27,7 @@ use log::{debug, info, warn};
 use s3::bucket::Bucket;
 use s3::creds::Credentials;
 use s3::Region;
+use structs::{GeneratedImage, ImageInfo, Uploadable};
 
 use std::fs::{create_dir_all, metadata, read_to_string};
 use std::io::Read;
@@ -37,13 +39,15 @@ pub fn upload_images(
     image: ImageInfo,
     s3_sub_directory: &Option<String>,
     now: DateTime<Local>,
-) -> Result<(GeneratedImage, Vec<GeneratedImage>)> {
+) -> Result<ImageInfo> {
     // TODO: Do this in a way that handles errors and is not potentially misleading
-    let total_size: u64 = once(&image.full_size_image)
+    let total_size: u64 = once(&image.full_size_reencoded_image)
         .chain(&image.generated_images)
-        .filter_map(|image| metadata(&image.path).ok())
+        .filter_map(|image| metadata(image.path()).ok())
         .map(|a| a.len())
-        .sum();
+        .sum::<u64>()
+        // Figure out how to make this less ugly just because you can't chain it
+        + metadata(image.original_image.path()).ok().unwrap().len();
 
     let prefix = get_uploaded_prefix(s3_sub_directory, now);
 
@@ -58,52 +62,69 @@ pub fn upload_images(
     // TODO: Concurrency
     let progress_bar = ProgressBar::new(total_size);
     let mut s3_images: Vec<GeneratedImage> = Vec::with_capacity(image.generated_images.len() + 1);
-    let full_size_image = upload_image(&image.full_size_image, &prefix, &bucket, &progress_bar)?;
+    let full_size_reencoded_image = upload_image(
+        &image.full_size_reencoded_image,
+        &prefix,
+        &bucket,
+        &progress_bar,
+        None,
+    )?;
+    let original_image = upload_image(
+        &image.original_image,
+        &prefix,
+        &bucket,
+        &progress_bar,
+        Some("copy-of-original".to_owned()),
+    )?;
     for image in &image.generated_images {
-        let s3_image = upload_image(image, &prefix, &bucket, &progress_bar)?;
+        let s3_image = upload_image(image, &prefix, &bucket, &progress_bar, None)?;
         s3_images.push(s3_image)
     }
     progress_bar.finish_and_clear();
-    Ok((full_size_image, s3_images))
+    Ok(image
+        .with_full_size_reencoded_image(full_size_reencoded_image)
+        .with_original_image(original_image)
+        .with_generated_images(s3_images))
 }
 
-fn upload_image(
-    image: &GeneratedImage,
+fn upload_image<T: Uploadable>(
+    image: &T,
     prefix: &String,
     bucket: &Bucket,
     progress_bar: &ProgressBar,
-) -> Result<GeneratedImage> {
-    let s3_path = get_file_s3_bucket_path(&image.path, prefix);
-    let mut file_contents = std::fs::File::open(&image.path)?;
+    suffix: Option<String>,
+) -> Result<T> {
+    let s3_path = get_file_s3_bucket_path(&image.path(), prefix, suffix);
+    let mut file_contents = std::fs::File::open(image.path())?;
     let size = file_contents.metadata()?.len();
     let mut bytes: Vec<u8> = Vec::with_capacity(size.try_into().with_context(|| {
         format!(
             "Error creating a buffer to read {} into",
-            &image.path.to_string_lossy()
+            &image.path().to_string_lossy()
         )
     })?);
     file_contents.read_to_end(&mut bytes)?;
     let extension = image
-        .path
+        .path()
         .extension()
         .with_context(|| {
             format!(
                 "Error getting extension for {}",
-                &image.path.to_string_lossy()
+                &image.path().to_string_lossy()
             )
         })?
         .to_str()
         .with_context(|| {
             format!(
                 "Error getting extension for {}",
-                &image.path.to_string_lossy()
+                &image.path().to_string_lossy()
             )
         })?
         .to_lowercase();
     let mime_type = &MIME_TABLE.get(&extension as &str).with_context(|| {
         format!(
             "Failed to get a matching mimetype when processing {}. {} does not map to a mime-type.",
-            &image.path.to_string_lossy(),
+            &image.path().to_string_lossy(),
             extension
         )
     })?;
@@ -115,7 +136,7 @@ fn upload_image(
 // This is only public so main can use it. See: See: https://users.rust-lang.org/t/lib-rs-declare-module-publicly-visible-only-to-main-rs/97368
 #[doc(hidden)]
 /// Gets the path from a bucket's root to a file
-pub fn get_file_s3_bucket_path(path: &Path, prefix: &String) -> String {
+pub fn get_file_s3_bucket_path(path: &Path, prefix: &String, suffix: Option<String>) -> String {
     let file_name = path
         .file_name()
         .with_context(|| format!("Failed to get file name for {}", &path.to_string_lossy()))
@@ -124,12 +145,17 @@ pub fn get_file_s3_bucket_path(path: &Path, prefix: &String) -> String {
         .unwrap()
         .replace(' ', "-");
 
-    [prefix.to_owned(), file_name].join("")
+    [
+        prefix.to_owned(),
+        file_name,
+        suffix.unwrap_or_else(|| String::from("")),
+    ]
+    .join("")
 }
 
 /// Creates the data to be written to file
-pub fn generate_data(s3_images: Vec<ImageInfo>, options: &Options) -> Vec<Data> {
-    let mut data: Vec<Data> = Vec::with_capacity(s3_images.len());
+pub fn generate_data(s3_images: Vec<ImageInfo>, options: &Options) -> Vec<HugoData> {
+    let mut data: Vec<HugoData> = Vec::with_capacity(s3_images.len());
     for image in s3_images {
         let image = image.clone();
         let srcset = image
@@ -155,13 +181,13 @@ pub fn generate_data(s3_images: Vec<ImageInfo>, options: &Options) -> Vec<Data> 
             &image.input_path,
         );
 
-        data.push(Data {
+        data.push(HugoData {
             name: image.get_hugo_data_key(options),
             fallback,
             sources: vec![],
             hqimage: Some(
                 image
-                    .full_size_image
+                    .full_size_reencoded_image
                     .s3_path
                     .expect("High quality image missing S3 bucket path when generating data."),
             ),
@@ -180,7 +206,8 @@ pub fn is_hugo_data_template_name_collision(
         .to_owned()
         .unwrap_or_else(|| PathBuf::from("./data/images.json"));
     if output_location.exists() {
-        let existing_data: Vec<Data> = serde_json::from_str(&read_to_string(&output_location)?)?;
+        let existing_data: Vec<HugoData> =
+            serde_json::from_str(&read_to_string(&output_location)?)?;
         // See if data already exists
         Ok(existing_data.iter().any(|a| a.name == name))
     } else {
@@ -190,11 +217,11 @@ pub fn is_hugo_data_template_name_collision(
 
 /// Writes data to the specified location as JSON
 pub fn write_data_to_hugo_data_template(
-    data: Vec<Data>,
+    data: Vec<HugoData>,
     output_location: Option<PathBuf>,
     should_overwrite: bool,
 ) -> Result<(), AppError> {
-    let mut existing_data: Vec<Data>;
+    let mut existing_data: Vec<HugoData>;
     let output_location = output_location.unwrap_or_else(|| PathBuf::from("./data/images.json"));
 
     if output_location.exists() {

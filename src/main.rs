@@ -9,8 +9,8 @@ use env_logger::Env;
 
 use chrono::prelude::*;
 use responsive_image_for_hugo::error::AppError;
-use responsive_image_for_hugo::image::{GeneratedImage, ImageInfo};
 use responsive_image_for_hugo::options::Options;
+use responsive_image_for_hugo::structs::{GeneratedImage, ImageInfo, Uploadable};
 use structopt::StructOpt;
 use tempfile::Builder;
 
@@ -38,7 +38,6 @@ fn main() -> Result<(), AppError> {
     let options = Options::from_args();
     let temp_dir = Builder::new().prefix("rith").tempdir()?;
     let temp_dir_path = &temp_dir.path().to_path_buf();
-    debug!("Temp directory path: {}", &temp_dir_path.to_string_lossy());
 
     let does_data_already_exist = responsive_image_for_hugo::is_hugo_data_template_name_collision(
         &options.name,
@@ -58,34 +57,23 @@ fn main() -> Result<(), AppError> {
         &options,
     )?;
 
-    // TODO: Optimize images for web further using pio or pio-like techniques (see: https://github.com/siiptuo/pio)
-
     let mut images_with_s3_paths: Vec<ImageInfo> =
-        Vec::with_capacity(images.iter().map(|i| i.generated_images.len() + 1).sum());
+        Vec::with_capacity(images.iter().map(|i| i.generated_images.len() + 2).sum());
 
     if options.skip_upload {
         for image in &images {
-            let (original_image, generated_images) =
-                fake_upload_images(image, &options.s3_directory, now);
-            images_with_s3_paths.push(
-                image
-                    .with_full_size_image(original_image)
-                    .with_generated_images(generated_images),
-            );
+            let image_info = fake_upload_images(image, &options.s3_directory, now);
+            images_with_s3_paths.push(image_info);
         }
     } else {
         info!("Uploading images");
         for image in &images {
-            let (original_image, generated_images) = responsive_image_for_hugo::upload_images(
+            let image_info = responsive_image_for_hugo::upload_images(
                 image.clone(),
                 &options.s3_directory,
                 now,
             )?;
-            images_with_s3_paths.push(
-                image
-                    .with_full_size_image(original_image)
-                    .with_generated_images(generated_images),
-            );
+            images_with_s3_paths.push(image_info);
         }
     }
 
@@ -123,27 +111,46 @@ fn fake_upload_images(
     image: &ImageInfo,
     s3_sub_directory: &Option<String>,
     now: DateTime<Local>,
-) -> (GeneratedImage, Vec<GeneratedImage>) {
+) -> ImageInfo {
     let prefix = responsive_image_for_hugo::get_uploaded_prefix(s3_sub_directory, now);
     let s3_images = image
         .generated_images
         .iter()
         .map(|image| {
-            let s3_path = responsive_image_for_hugo::get_file_s3_bucket_path(&image.path, &prefix);
+            let s3_path =
+                responsive_image_for_hugo::get_file_s3_bucket_path(&image.path, &prefix, None);
             image.with_s3_path(Some([constants::WEB_PREFIX, &s3_path].join("")))
         })
         .collect::<Vec<GeneratedImage>>();
 
-    let full_size_image = image.full_size_image.with_s3_path(Some(
+    let full_size_reencoded_image = image.full_size_reencoded_image.with_s3_path(Some(
         [
             constants::WEB_PREFIX,
             &responsive_image_for_hugo::get_file_s3_bucket_path(
-                &image.full_size_image.path,
+                &image.full_size_reencoded_image.path,
                 &prefix,
+                None,
             ),
         ]
         .join(""),
     ));
 
-    (full_size_image, s3_images)
+    let original_image_copy = image.original_image.with_s3_path(Some(
+        [
+            constants::WEB_PREFIX,
+            &responsive_image_for_hugo::get_file_s3_bucket_path(
+                &image.full_size_reencoded_image.path,
+                &prefix,
+                // TODO: If change here - change in actual lib.
+                // TODO: Extract this!
+                Some("copy-of-original".to_owned()),
+            ),
+        ]
+        .join(""),
+    ));
+
+    image
+        .with_generated_images(s3_images)
+        .with_full_size_reencoded_image(full_size_reencoded_image)
+        .with_original_image(original_image_copy)
 }
