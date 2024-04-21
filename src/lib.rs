@@ -191,6 +191,12 @@ pub fn generate_data(s3_images: Vec<ImageInfo>, options: &Options) -> Vec<HugoDa
                     .s3_path
                     .expect("High quality image missing S3 bucket path when generating data."),
             ),
+            original_image: Some(
+                image
+                    .original_image
+                    .s3_path
+                    .expect("High quality image missing S3 bucket path when generating data."),
+            ),
         });
     }
     data
