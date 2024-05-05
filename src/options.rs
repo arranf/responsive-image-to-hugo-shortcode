@@ -53,7 +53,7 @@ pub struct Options {
 
     #[structopt(
         long,
-        default_value = "320,480,640,768,960,1024,1366,1600,1920,1440,1600,1800"
+        default_value = "320,480,640,768,960,1024,1366,1600,1920,1440,1800"
     )]
     pub sizes: Sizes,
 }

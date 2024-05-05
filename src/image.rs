@@ -223,7 +223,12 @@ pub fn process_image(
     })?;
 
     if !options.skip_resize {
-        encode_image(&image, full_size_reencoded_path.clone())?;
+        encode_image(&image, full_size_reencoded_path.clone()).with_context(|| {
+            format!(
+                "Failed to reencode image at full size: {}",
+                input_file.to_string_lossy()
+            )
+        })?;
     }
 
     let mut generated_images: Vec<GeneratedImage> = Vec::with_capacity(resizes.len());
@@ -232,7 +237,14 @@ pub fn process_image(
     // TODO: Concurrency
     for resize in &resizes {
         let generated_image =
-            scale_and_save(input_file, output_directory, &image, resize, ext, options)?;
+            scale_and_save(input_file, output_directory, &image, resize, ext, options)
+                .with_context(|| {
+                    format!(
+                        "Failed to resize image to {:?} {}",
+                        resize,
+                        input_file.to_string_lossy()
+                    )
+                })?;
         generated_images.push(generated_image);
         progress_bar.inc(1);
     }
@@ -322,7 +334,9 @@ fn create_destination_path(
             )
         })?;
     let img_path = path_from_array(&[
-        &output_directory.to_str().expect("Unable to get path"),
+        (output_directory
+            .to_str()
+            .expect("Unable to create destination path path")),
         &options.name.replace(' ', "-"),
         &file_name.replace(' ', "-"),
         &([file_name, "-", suffix, ".", ext]
