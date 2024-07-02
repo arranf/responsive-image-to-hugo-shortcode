@@ -17,7 +17,7 @@ This program:
 ## Usage
 
 ```sh
-responsive-image-to-hugo-template run -- -s -o ./test/images.json ./test/example_zip.zip ./test/example_input.txt --name Test
+responsive-image-to-hugo-template -o ./test/images.json ./test/example_zip.zip ./test/example_input.txt --name Test
 ```
 
 ## Directories
