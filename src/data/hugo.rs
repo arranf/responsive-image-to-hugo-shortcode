@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::fallback_image::FallbackImage;
-use crate::source::Source;
+use super::fallback_image::FallbackImage;
+use super::source::Source;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub struct HugoData {

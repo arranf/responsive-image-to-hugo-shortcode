@@ -1,76 +1,11 @@
-use crate::options::Options;
-
-use super::Resize;
-
 use std::path::PathBuf;
 
-#[derive(Debug, Clone)]
-pub struct GeneratedImage {
-    pub width: usize,
-    pub height: usize,
-    pub path: PathBuf,
-    pub s3_path: Option<String>,
-}
+use crate::options::Options;
+use crate::original_image::OriginalImage;
 
-impl GeneratedImage {
-    pub fn new(width: usize, height: usize, path: PathBuf) -> Self {
-        Self {
-            width,
-            height,
-            path,
-            s3_path: None,
-        }
-    }
-}
+use super::generated_image::GeneratedImage;
+use super::image::Resize;
 
-/// The original file without any modifications
-#[derive(Debug, Clone)]
-pub struct OriginalImage {
-    pub path: PathBuf,
-    pub s3_path: Option<String>,
-}
-
-impl OriginalImage {
-    pub fn new(path: PathBuf) -> Self {
-        Self {
-            path,
-            s3_path: None,
-        }
-    }
-}
-
-impl Uploadable for OriginalImage {
-    fn path(&self) -> PathBuf {
-        self.path.to_path_buf()
-    }
-
-    fn with_s3_path(&self, s3_path: Option<String>) -> Self {
-        Self {
-            s3_path,
-            ..self.clone()
-        }
-    }
-}
-
-impl Uploadable for GeneratedImage {
-    fn path(&self) -> PathBuf {
-        self.path.to_path_buf()
-    }
-
-    fn with_s3_path(&self, s3_path: Option<String>) -> Self {
-        Self {
-            s3_path,
-            ..self.clone()
-        }
-    }
-}
-
-pub trait Uploadable {
-    fn with_s3_path(&self, s3_path: Option<String>) -> Self;
-    fn path(&self) -> PathBuf;
-}
-
-// TOODO: Record exif
 #[derive(Debug, Clone)]
 pub struct ImageInfo {
     /// The largest (non original) file generated

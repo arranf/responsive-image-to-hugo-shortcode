@@ -2,7 +2,10 @@
 
 use anyhow::Result;
 use log::{debug, error, info};
-use responsive_image_for_hugo::constants;
+use responsive_image_for_hugo::image::generated_image::GeneratedImage;
+use responsive_image_for_hugo::image::image_info::ImageInfo;
+use responsive_image_for_hugo::upload::constants::WEB_PREFIX;
+use responsive_image_for_hugo::upload::uploadable::Uploadable;
 use std::time::Duration;
 
 use env_logger::Env;
@@ -10,7 +13,6 @@ use env_logger::Env;
 use chrono::prelude::*;
 use responsive_image_for_hugo::error::AppError;
 use responsive_image_for_hugo::options::Options;
-use responsive_image_for_hugo::structs::{GeneratedImage, ImageInfo, Uploadable};
 use structopt::StructOpt;
 use tempfile::Builder;
 
@@ -119,13 +121,13 @@ fn fake_upload_images(
         .map(|image| {
             let s3_path =
                 responsive_image_for_hugo::get_file_s3_bucket_path(&image.path, &prefix, None);
-            image.with_s3_path(Some([constants::WEB_PREFIX, &s3_path].join("")))
+            image.with_s3_path(Some([WEB_PREFIX, &s3_path].join("")))
         })
         .collect::<Vec<GeneratedImage>>();
 
     let full_size_reencoded_image = image.full_size_reencoded_image.with_s3_path(Some(
         [
-            constants::WEB_PREFIX,
+            WEB_PREFIX,
             &responsive_image_for_hugo::get_file_s3_bucket_path(
                 &image.full_size_reencoded_image.path,
                 &prefix,
@@ -137,7 +139,7 @@ fn fake_upload_images(
 
     let original_image_copy = image.original_image.with_s3_path(Some(
         [
-            constants::WEB_PREFIX,
+            WEB_PREFIX,
             &responsive_image_for_hugo::get_file_s3_bucket_path(
                 &image.full_size_reencoded_image.path,
                 &prefix,

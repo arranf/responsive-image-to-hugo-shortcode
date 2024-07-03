@@ -1,13 +1,15 @@
+use super::generated_image::GeneratedImage;
+use super::image_info::ImageInfo;
 use crate::options::Options;
-use crate::structs::GeneratedImage;
-use crate::structs::ImageInfo;
-use crate::structs::OriginalImage;
+use crate::original_image::OriginalImage;
 use crate::AppError;
 use crate::Metrics;
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs::{create_dir_all, File};
+use std::io::BufReader;
+use std::io::Read;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -21,6 +23,9 @@ use log::debug;
 
 use log::info;
 
+use peck_exif::exif::create_list_from_vec;
+use peck_exif::exif::Exif;
+use peck_exif::exif::Mode;
 use rimage::codecs::jpegli::JpegliEncoder;
 use rimage::codecs::jpegli::JpegliOptions;
 use zune_core::colorspace::ColorSpace;
@@ -28,6 +33,7 @@ use zune_image::image::Image;
 use zune_image::traits::EncoderTrait;
 use zune_image::traits::OperationsTrait;
 
+// TODO: Replace this with something more native?
 lazy_static::lazy_static! {
     // Match any filename with 3 or 4 digits ending in a w; and `legacy`
     static ref RE: regex::Regex = regex::Regex::new("^\\d{3}w$|^\\d{4}w$|^legacy$").unwrap();
@@ -61,8 +67,9 @@ lazy_static::lazy_static! {
     };
 }
 
+/// Given a load_image::Image return a zune_image by translating from the img_vec (stride based) to the zune_image format
+/// We use load_image::Image because of the fact it uses mozjpeg under the hood (which means we can use jpegli) and mozjpeg is a painful library to use.
 fn zune_image_from_loaded_image(image: load_image::Image) -> Image {
-    // TODO: Metadata
     match image.into_imgvec() {
         ImgVecKind::RGB8(pixels) => {
             let (pixels, width, height) = pixels.into_contiguous_buf();
@@ -171,14 +178,52 @@ pub fn process_image(
     options: &Options,
     m: &mut Metrics,
 ) -> Result<ImageInfo> {
-    // TODO: With context
-    let image = Loader::new()
+    // TODO: Special handle how we decode JPEGs but otherwise use a generic decoder
+    let file = File::open(input_file)
+        .with_context(|| format!("Failed to open file {}", &input_file.to_string_lossy()))?;
+    let mut buf: Vec<u8> = Vec::new();
+
+    BufReader::new(&file)
+        .read_to_end(&mut buf)
+        .with_context(|| format!("Failed to read file {}", &input_file.to_string_lossy()))?;
+
+    debug!("Decoding {}", &input_file.to_string_lossy());
+
+    // TODO: Find a way to use Jpegli without having to do
+    let decoded_image = Loader::new()
         .metadata(true)
-        .load_path(input_file)
+        .load_data(buf.as_ref())
         .with_context(|| format!("Failed to load image {}", &input_file.to_string_lossy()))?;
-    let width = image.width;
-    let height = image.height;
-    let image = zune_image_from_loaded_image(image);
+
+    let allow_list = create_list_from_vec(vec![
+        "FocalLength",
+        "ISO",
+        "CameraModelName",
+        "FNumber",
+        "ShutterSpeed",
+        "FocalLengthIn35mmFormat",
+        "HDR",
+        "Megapixels",
+        "LensID",
+        "LensType",
+        "Make",
+        "DeviceManufacturer",
+        "Aperture",
+        "ExposureCompensation",
+        "ColorTempKelvin",
+        "ImageSize",
+        "HyperfocalDistance",
+    ]);
+    let exif = Exif::new(input_file, Mode::Whitelist(allow_list)).expect("Failed to parse EXIF");
+    for (tag, value) in exif.attributes.iter() {
+        // TODO: Do more than print
+        println!("{}:{}", tag, value);
+    }
+
+    let width = decoded_image.width;
+    let height = decoded_image.height;
+    // TODO: Confirm if this only works for JPEGs?
+    let image = zune_image_from_loaded_image(decoded_image);
 
     let resizes = compute_resize_pairs(width, height, options.sizes.0.clone())
         .ok_or(AppError::ImageTooSmall)

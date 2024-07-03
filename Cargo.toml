@@ -7,10 +7,7 @@ authors = ["Arran France <arran@arranfrance.com>"]
 edition = "2021"
 categories = ["command-line-utilities"]
 readme = "README.md"
-
-[patch.crates-io]
-zune-image = { path = "/Users/arran/.cargo/registry/src/index.crates.io-6f17d22bba15001f/zune-image-0.4.15" }
-
+rust-version = "1.79"
 
 [dependencies]
 rimage = { git = "https://github.com/arranf/rimage.git", branch = "feature/jpegli", features = [
@@ -21,6 +18,7 @@ rimage = { git = "https://github.com/arranf/rimage.git", branch = "feature/jpegl
     "metadata",
 ] }
 load_image = { git = "https://gitlab.com/arranf/load_image.git", branch = "feature/jpegli" }
+
 env_logger = "0.11.3"
 log = "0.4.22"
 structopt = "0.3.26"
@@ -40,6 +38,7 @@ thiserror = "1.0.61"
 itertools = "0.13.0"
 zune-core = "0.4.12"
 zune-image = "0.4.15"
+peck-exif = "1.0.1"
 
 [dev-dependencies]
 assert_cmd = "2.0.7"

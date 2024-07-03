@@ -1,23 +1,24 @@
 #![warn(clippy::all)]
 
 pub mod constants;
+mod data;
 pub mod error;
-mod fallback_image;
-mod hugo;
 pub mod image;
 pub mod metrics;
 pub mod options;
-mod source;
-mod sqip;
-pub mod structs;
+pub mod upload;
 
+use crate::data::hugo::HugoData;
 use crate::error::AppError;
-use crate::fallback_image::FallbackImage;
-use crate::hugo::HugoData;
 use crate::image::*;
 use crate::metrics::Metrics;
 use crate::options::Options;
 use crate::sqip::*;
+
+use data::fallback_image::FallbackImage;
+use generated_image::GeneratedImage;
+use image::image::{digest_path, process_image, MIME_TABLE};
+use image_info::ImageInfo;
 use itertools::Itertools;
 
 use anyhow::{Context, Result};
@@ -27,7 +28,8 @@ use log::{debug, info, warn};
 use s3::bucket::Bucket;
 use s3::creds::Credentials;
 use s3::Region;
-use structs::{GeneratedImage, ImageInfo, Uploadable};
+use upload::constants::{BUCKET_NAME, REGION, WEB_PREFIX};
+use upload::uploadable::Uploadable;
 
 use std::fs::{create_dir_all, metadata, read_to_string};
 use std::io::Read;
@@ -51,13 +53,11 @@ pub fn upload_images(
 
     let prefix = get_uploaded_prefix(s3_sub_directory, now);
 
-    let region = constants::REGION
-        .parse::<Region>()
-        .map_err(AppError::RegionParse)?;
+    let region = REGION.parse::<Region>().map_err(AppError::RegionParse)?;
 
     // Loads from environment variables
     let credentials = Credentials::default()?;
-    let bucket = Bucket::new(constants::BUCKET_NAME, region, credentials)?.with_path_style();
+    let bucket = Bucket::new(BUCKET_NAME, region, credentials)?.with_path_style();
 
     // TODO: Concurrency
     let progress_bar = ProgressBar::new(total_size);
@@ -130,7 +130,7 @@ fn upload_image<T: Uploadable>(
     })?;
     bucket.put_object_with_content_type_blocking(&s3_path, &bytes, mime_type)?;
     progress_bar.inc(size);
-    Ok(image.with_s3_path(Some([constants::WEB_PREFIX, &s3_path].join(""))))
+    Ok(image.with_s3_path(Some([WEB_PREFIX, &s3_path].join(""))))
 }
 
 // This is only public so main can use it. See: See: https://users.rust-lang.org/t/lib-rs-declare-module-publicly-visible-only-to-main-rs/97368
@@ -269,7 +269,7 @@ pub fn generate_images(
     let mut m = Metrics::default();
     if !image_path.is_dir() {
         debug!("Processing {}", image_path.to_string_lossy());
-        let image_info = vec![image::process_image(
+        let image_info = vec![process_image(
             image_path,
             output_directory,
             options,
