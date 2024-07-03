@@ -1,5 +1,6 @@
 use super::generated_image::GeneratedImage;
 use super::image_info::ImageInfo;
+use crate::data::exif::Exif;
 use crate::options::Options;
 use crate::original_image::OriginalImage;
 use crate::AppError;
@@ -23,9 +24,8 @@ use log::debug;
 
 use log::info;
 
-use peck_exif::exif::create_list_from_vec;
-use peck_exif::exif::Exif;
 use peck_exif::exif::Mode;
+use peck_exif::exif::{create_list_from_vec, Exif as PeckExif};
 use rimage::codecs::jpegli::JpegliEncoder;
 use rimage::codecs::jpegli::JpegliOptions;
 use zune_core::colorspace::ColorSpace;
@@ -195,6 +195,7 @@ pub fn process_image(
         .load_data(buf.as_ref())
         .with_context(|| format!("Failed to load image {}", &input_file.to_string_lossy()))?;
 
+    // TODO: Make this typed
     let allow_list = create_list_from_vec(vec![
         "FocalLength",
         "ISO",
@@ -214,11 +215,9 @@ pub fn process_image(
         "ImageSize",
         "HyperfocalDistance",
     ]);
-    let exif = Exif::new(input_file, Mode::Whitelist(allow_list)).expect("Failed to parse EXIF");
-    for (tag, value) in exif.attributes.iter() {
-        // TODO: Do more than print
-        println!("{}:{}", tag, value);
-    }
+    let exif =
+        PeckExif::new(input_file, Mode::Whitelist(allow_list)).expect("Failed to parse EXIF");
+    let exif = Exif::from(exif);
 
     let width = decoded_image.width;
     let height = decoded_image.height;
@@ -305,6 +304,7 @@ pub fn process_image(
         generated_images,
         GeneratedImage::new(width, height, full_size_reencoded_path.clone()),
         OriginalImage::new(input_file.to_path_buf()),
+        exif,
     ))
 }
 

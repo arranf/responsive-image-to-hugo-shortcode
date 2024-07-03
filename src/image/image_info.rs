@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::data::exif::Exif;
 use crate::options::Options;
 use crate::original_image::OriginalImage;
 
@@ -22,6 +23,8 @@ pub struct ImageInfo {
     pub full_size_reencoded_image: GeneratedImage,
     /// The untouched original image
     pub original_image: OriginalImage,
+    /// EXIF data for the image
+    pub exif: Exif,
 }
 
 impl ImageInfo {
@@ -33,6 +36,7 @@ impl ImageInfo {
         generated_images: Vec<GeneratedImage>,
         full_size_reencoded_image: GeneratedImage,
         original_image: OriginalImage,
+        exif: Exif,
     ) -> Self {
         Self {
             max_width,
@@ -42,6 +46,7 @@ impl ImageInfo {
             generated_images,
             full_size_reencoded_image,
             original_image,
+            exif,
         }
     }
 

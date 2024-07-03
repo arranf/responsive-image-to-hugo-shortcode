@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+use super::exif::Exif;
 use super::fallback_image::FallbackImage;
 use super::source::Source;
 
@@ -15,4 +16,8 @@ pub struct HugoData {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(default)]
     pub original_image: Option<String>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default)]
+    pub exif: Option<Exif>,
 }
