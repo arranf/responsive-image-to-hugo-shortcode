@@ -19,22 +19,22 @@ rimage = { git = "https://github.com/arranf/rimage.git", branch = "feature/jpegl
 ] }
 load_image = { git = "https://gitlab.com/arranf/load_image.git", branch = "feature/jpegli" }
 
-env_logger = "0.11.3"
+env_logger = "0.11.5"
 log = "0.4.22"
 structopt = "0.3.26"
 chrono = "0.4.38"
-regex = "1.10.5"
-tempfile = "3.10.1"
-serde_json = "1.0.118"
-serde = "1.0.203"
-serde_derive = "1.0.203"
-rust-s3 = { version = "0.34.0", features = ["default", "blocking", "tokio"] }
+regex = "1.10.6"
+tempfile = "3.12.0"
+serde_json = "1.0.128"
+serde = "1.0.209"
+serde_derive = "1.0.209"
+rust-s3 = { version = "0.35.1", features = ["default", "blocking", "tokio"] }
 indicatif = "0.17.8"
 base64 = "0.22.1"
 num_cpus = "1.16.0"
 lazy_static = "1.5.0"
 anyhow = "1.0.86"
-thiserror = "1.0.61"
+thiserror = "1.0.63"
 itertools = "0.13.0"
 zune-core = "0.4.12"
 zune-image = "0.4.15"
