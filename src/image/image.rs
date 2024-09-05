@@ -189,13 +189,14 @@ pub fn process_image(
 
     debug!("Decoding {}", &input_file.to_string_lossy());
 
-    // TODO: Find a way to use Jpegli without having to do
+    // TODO: Find a way to use Jpegli without having to do this
     let decoded_image = Loader::new()
         .metadata(true)
         .load_data(buf.as_ref())
         .with_context(|| format!("Failed to load image {}", &input_file.to_string_lossy()))?;
 
     // TODO: Make this typed
+    // TODO: EXIF should be an option
     let allow_list = create_list_from_vec(vec![
         "FocalLength",
         "ISO",
