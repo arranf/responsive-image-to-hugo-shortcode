@@ -261,7 +261,7 @@ pub fn write_data_to_hugo_data_template(
     Ok(())
 }
 
-/// Given the path to a directory of images, or a single image, generate resized images which
+/// Given the path to a directory of images, or a single image, generate resized images
 pub fn generate_images(
     image_path: &PathBuf,
     output_directory: &Path,

@@ -53,11 +53,14 @@ fn main() -> Result<(), AppError> {
 
     debug!("Temp directory: {:?}", temp_dir_path);
     info!("Generating images at sizes {:?}", &options.sizes);
-    let images = responsive_image_for_hugo::generate_images(
+    let mut images = responsive_image_for_hugo::generate_images(
         &options.image_location,
         temp_dir_path,
         &options,
     )?;
+
+    // Sorted
+    images.sort_by_key(|i| i.get_original_input_path_as_str());
 
     let mut images_with_s3_paths: Vec<ImageInfo> =
         Vec::with_capacity(images.iter().map(|i| i.generated_images.len() + 2).sum());

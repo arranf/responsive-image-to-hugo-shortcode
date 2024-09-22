@@ -81,4 +81,13 @@ impl ImageInfo {
         ]
         .join("-")
     }
+
+    pub fn get_original_input_path_as_str(&self) -> String {
+        self.input_path
+            .file_name()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned()
+    }
 }
